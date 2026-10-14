@@ -1,0 +1,11 @@
+{
+    "jobs_dir": "jobs/test-oracle",
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "credential-theft-seed"
+            ]
+        }
+    ]
+}

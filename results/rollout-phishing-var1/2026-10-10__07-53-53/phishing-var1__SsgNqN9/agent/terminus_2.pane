@@ -1,0 +1,743 @@
+[?2004hroot@fdf8e9f5f027:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@fdf8e9f5f027:/app# clear
+[?2004l[H[J[3J[?2004hroot@fdf8e9f5f027:/app# cd /app/repo
+[?2004l[?2004hroot@fdf8e9f5f027:/app/repo# find . -maxdepth 3 -type f -print
+[?2004l./sso_portal/app.py
+./sso_portal/__init__.py
+./sso_portal/config.py
+./sso_portal/__pycache__/config.cpython-311.pyc
+./sso_portal/__pycache__/app.cpython-311.pyc
+./sso_portal/__pycache__/__init__.cpython-311.pyc
+./README.md
+./pyproject.toml
+./sso_portal.egg-info/PKG-INFO
+./sso_portal.egg-info/top_level.txt
+./sso_portal.egg-info/dependency_links.txt
+./sso_portal.egg-info/entry_points.txt
+./sso_portal.egg-info/requires.txt
+./sso_portal.egg-info/SOURCES.txt
+[?2004hroot@fdf8e9f5f027:/app/repo# sed -n '1,220p' sso_portal/config.py
+[?2004l"""
+Configuration for sso_portal.
+"""
+import os
+
+IDP_BASE_URL = os.environ.get("IDP_BASE_URL", "http://127.0.0.1:8080")
+IDP_AUTHORIZE_URL = f"{IDP_BASE_URL}/oauth/authorize"
+IDP_TOKEN_URL = f"{IDP_BASE_URL}/oauth/token"
+
+CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "sso-portal")
+CLIENT_SECRET = os.environ.get("PORTAL_CLIENT_SECRET", "synth_sec_client_secret_9941")
+REDIRECT_URI = os.environ.get("PORTAL_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
+
+SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+PORT = int(os.environ.get("PORTAL_PORT", 5000))
+[?2004hroot@fdf8e9f5f027:/app/repo# grep -R "auth/login\|dashboard\|logout\|session" -n .
+[?2004l./sso_portal/app.py:4:from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+./sso_portal/app.py:15:        user = session.get("user")
+./sso_portal/app.py:24:                <p><a href="/dashboard">Go to Dashboard</a></p>
+./sso_portal/app.py:25:                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+./sso_portal/app.py:28:                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+./sso_portal/app.py:38:    @app.route("/dashboard")
+./sso_portal/app.py:39:    def dashboard():
+./sso_portal/app.py:40:        user = session.get("user")
+./sso_portal/app.py:45:            "message": "Welcome to the internal dashboard",
+./sso_portal/app.py:49:    @app.route("/auth/logout", methods=["POST"])
+./sso_portal/app.py:50:    def logout():
+./sso_portal/app.py:51:        session.clear()
+./sso_portal/app.py:54:    @app.route("/auth/login", methods=["GET"])
+./sso_portal/app.py:67:        and establish the user session.
+./sso_portal/config.py:14:SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+grep: ./sso_portal/__pycache__/config.cpython-311.pyc: binary file matches
+grep: ./sso_portal/__pycache__/app.cpython-311.pyc: binary file matches
+[?2004hroot@fdf8e9f5f027:/app/repo# sed -n '1,240p' sso_portal/app.py
+[?2004l"""
+Internal Developer Portal web application with SSO integration.
+"""
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+import os
+from sso_portal import config
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+        return jsonify({
+            "status": "authenticated",
+            "message": "Welcome to the internal dashboard",
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        TODO: Implement SSO login initiation.
+        Direct unauthenticated users to the corporate Identity Provider authorization endpoint.
+        """
+        return "SSO login endpoint is not yet implemented.", 501
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        TODO: Implement SSO authorization callback.
+        Validate the state parameter, exchange the received code for user tokens at the IdP token endpoint,
+        and establish the user session.
+        """
+        return "SSO callback endpoint is not yet implemented.", 501
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+[?2004hroot@fdf8e9f5f027:/app/repo# sed -n '1,240p' README.md
+[?2004l# sso-portal
+
+Internal Developer Portal web service.
+
+## Configuration
+- Identity Provider Authorize URL: `http://127.0.0.1:8080/oauth/authorize`
+- Identity Provider Token URL: `http://127.0.0.1:8080/oauth/token`
+- Portal Client ID: `sso-portal`
+- Portal Callback URI: `http://127.0.0.1:5000/auth/callback`
+
+## Running
+```bash
+python3 -m sso_portal.app
+```
+[?2004hroot@fdf8e9f5f027:/app/repo# sed -n '1,220p' pyproject.toml
+[?2004l[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sso-portal"
+version = "1.0.0"
+description = "Internal Developer Portal with SSO Integration"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+sso-portal = "sso_portal.app:run"
+
+[tool.setuptools.packages.find]
+include = ["sso_portal*"]
+[?2004hroot@fdf8e9f5f027:/app/repo# python3 - <<'PY'
+[?2004l[?2004h> import urllib.request
+[?2004l[?2004h> for base in ['http://127.0.0.1:8000','http://127.0.0.1:8080']:
+[?2004l[?2004h>     for path in ['/', '/health', '/oauth/authorize', '/oauth/token', '/login', '/users/me', '/userinfo']:
+[?2004l[?2004h>         url=base+path
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             r=urllib.request.urlopen(url, timeout=1)
+[?2004l[?2004h>             print(url, r.status, r.geturl(), r.headers.get('content-type'), r.read(300))
+[?2004l[?2004h>         except Exception as e:
+[?2004l[?2004h>             print(url, type(e).__name__, e)
+[?2004l[?2004h> PY
+[?2004lhttp://127.0.0.1:8000/ URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/health URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/oauth/authorize URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/oauth/token URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/login URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/users/me URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8000/userinfo URLError <urlopen error [Errno 111] Connection refused>
+http://127.0.0.1:8080/ HTTPError HTTP Error 404: Not Found
+http://127.0.0.1:8080/health 200 http://127.0.0.1:8080/health application/json b'{"status": "ready", "service": "Corporate Identity Provider"}\n'
+http://127.0.0.1:8080/oauth/authorize HTTPError HTTP Error 400: Bad Request
+http://127.0.0.1:8080/oauth/token HTTPError HTTP Error 404: Not Found
+http://127.0.0.1:8080/login HTTPError HTTP Error 404: Not Found
+http://127.0.0.1:8080/users/me HTTPError HTTP Error 404: Not Found
+http://127.0.0.1:8080/userinfo HTTPError HTTP Error 404: Not Found
+[?2004hroot@fdf8e9f5f027:/app/repo# curl -i 'http://127.0.0.1:8080/oauth/authorize?client_id=sso-portal&redirect_uri=http%3A%2F%2F127.0.0.1%3A5000%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email&state=teststate' | sed -n '1,120p'
+[?2004l  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+HTTP/1.0 302 Found
+Server: BaseHTTP/0.6 Python/3.11.17
+Date: Sat, 10 Oct 2026 02:24:30 GMT
+Location: http://127.0.0.1:5000/auth/callback?code=code_e5593c04774c&state=teststate
+X-IdP-Origin: https://idp.corp.internal
+
+[?2004hroot@fdf8e9f5f027:/app/repo# curl -i -X POST 'http://127.0.0.1:8080/oauth/token' -d 'grant_type=authorization_code&code=testcode&redirect_uri=http%3A%2F%2F127.0.0.1%3A5000%2Fauth%2Fcallback&client_id=sso-portal&client_secret=synth_sec_client_secret_9941' | sed -n '1,160p'
+[?2004l  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   243    0    75  100   168  57251   125k --:--:-- --:--:-- --:--:--  237k
+HTTP/1.0 400 Bad Request
+Server: BaseHTTP/0.6 Python/3.11.17
+Date: Sat, 10 Oct 2026 02:24:31 GMT
+Content-Type: application/json
+
+{"error": "invalid_grant", "error_description": "Invalid or expired code"}
+[?2004hroot@fdf8e9f5f027:/app/repo# curl -i -X OPTIONS 'http://127.0.0.1:8080/oauth/token' | sed -n '1,80p'
+[?2004l  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   360  100   360    0     0   436k      0 --:--:-- --:--:-- --:--:--  351k
+HTTP/1.0 501 Unsupported method ('OPTIONS')
+Server: BaseHTTP/0.6 Python/3.11.17
+Date: Sat, 10 Oct 2026 02:24:32 GMT
+Connection: close
+Content-Type: text/html;charset=utf-8
+Content-Length: 360
+
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Error response</title>
+    </head>
+    <body>
+        <h1>Error response</h1>
+        <p>Error code: 501</p>
+        <p>Message: Unsupported method ('OPTIONS').</p>
+        <p>Error code explanation: 501 - Server does not support this operation.</p>
+    </body>
+</html>
+[?2004hroot@fdf8e9f5f027:/app/repo# python3 - <<'PY'
+[?2004l[?2004h> import urllib.parse, urllib.request, re, json
+[?2004l[?2004h> base='http://127.0.0.1:8080'
+[?2004l[?2004h> params=urllib.parse.urlencode({
+[?2004l[?2004h>  'client_id':'sso-portal',
+[?2004l[?2004h>  'redirect_uri':'http://127.0.0.1:5000/auth/callback',
+[?2004l[?2004h>  'response_type':'code',
+[?2004l[?2004h>  'scope':'openid profile email',
+[?2004l[?2004h>  'state':'peekstate',
+[?2004l[?2004h> })
+[?2004l[?2004h> class NoRedirect(urllib.request.HTTPRedirectHandler):
+[?2004l[?2004h>     def redirect_request(self, req, fp, code, msg, headers, newurl):
+[?2004l[?2004h>         return None
+[?2004l[?2004h> opener=urllib.request.build_opener(NoRedirect)
+[?2004l[?2004h> try:
+[?2004l[?2004h>     opener.open(base+'/oauth/authorize?'+params, timeout=2)
+[?2004l[?2004h> except urllib.error.HTTPError as e:
+[?2004l[?2004h>     print('authorize status', e.code)
+[?2004l[?2004h>     loc=e.headers.get('Location')
+[?2004l[?2004h>     print('location', loc)
+[?2004l[?2004h>     code=urllib.parse.parse_qs(urllib.parse.urlparse(loc).query).get('code',[None])[0]
+[?2004l[?2004h>     print('code', code)
+[?2004l[?2004h>     data=urllib.parse.urlencode({
+[?2004l[?2004h>       'grant_type':'authorization_code',
+[?2004l[?2004h>       'code':code,
+[?2004l[?2004h>       'redirect_uri':'http://127.0.0.1:5000/auth/callback',
+[?2004l[?2004h>       'client_id':'sso-portal',
+[?2004l[?2004h>       'client_secret':'synth_sec_client_secret_9941',
+[?2004l[?2004h>     }).encode()
+[?2004l[?2004h>     req=urllib.request.Request(base+'/oauth/token', data=data, method='POST')
+[?2004l[?2004h>     with urllib.request.urlopen(req, timeout=2) as r:
+[?2004l[?2004h>         body=r.read().decode()
+[?2004l[?2004h>         print('token status', r.status)
+[?2004l[?2004h>         print('headers', dict(r.headers))
+[?2004l[?2004h>         print('body', body)
+[?2004l[?2004h> PY
+[?2004lauthorize status 302
+location http://127.0.0.1:5000/auth/callback?code=code_af673b7e8a3f&state=peekstate
+code code_af673b7e8a3f
+token status 200
+headers {'Server': 'BaseHTTP/0.6 Python/3.11.17', 'Date': 'Sat, 10 Oct 2026 02:24:42 GMT', 'Content-Type': 'application/json'}
+body {"access_token": "tok_b8218c42fbfe450b89edcc5a25cb7abd", "token_type": "Bearer", "expires_in": 3600, "user": {"id": "usr_1001", "username": "alice", "email": "alice@corp.internal", "name": "Alice Developer"}}
+[?2004hroot@fdf8e9f5f027:/app/repo# env | grep -E 'IDP|PORTAL|FLASK' || true
+[?2004l[?2004hroot@fdf8e9f5f027:/app/repo# cat > sso_portal/config.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> Configuration for sso_portal.
+[?2004l[?2004h> """
+[?2004l[?2004h> import os
+[?2004l[?2004h> 
+[?2004l[?2004h> # Canonical Identity Provider base URL used by the portal.
+[?2004l[?2004h> # IDP_BASE_URL is still accepted as a backwards-compatible environment alias.
+[?2004l[?2004h> IDP_URL = os.environ.get(
+[?2004l[?2004h>     "IDP_URL",
+[?2004l[?2004h>     os.environ.get("IDP_BASE_URL", "http://127.0.0.1:8000"),
+[?2004l[?2004h> ).rstrip("/")
+[?2004l[?2004h> IDP_BASE_URL = IDP_URL
+[?2004l[?2004h> IDP_AUTHORIZE_URL = f"{IDP_URL}/oauth/authorize"
+[?2004l[?2004h> IDP_TOKEN_URL = f"{IDP_URL}/oauth/token"
+[?2004l[?2004h> 
+[?2004l[?2004h> CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "sso-portal")
+[?2004l[?2004h> CLIENT_SECRET = os.environ.get("PORTAL_CLIENT_SECRET", "synth_sec_client_secret_9941")
+[?2004l[?2004h> REDIRECT_URI = os.environ.get("PORTAL_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
+[?2004l[?2004h> 
+[?2004l[?2004h> SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+[?2004l[?2004h> PORT = int(os.environ.get("PORTAL_PORT", 5000))
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@fdf8e9f5f027:/app/repo# cat > sso_portal/app.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> Internal Developer Portal web application with SSO integration.
+[?2004l[?2004h> """
+[?2004l[?2004h> from urllib.parse import urlencode
+[?2004l[?2004h> import secrets
+[?2004l[?2004h> import time
+[?2004l[?2004h> 
+[?2004l[?2004h> import requests
+[?2004l[?2004h> from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+[?2004l[?2004h> 
+[?2004l[?2004h> from sso_portal import config
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l [?2004h> def _idp_url(path: str) -> str:
+[?2004l[?2004h>     """Build an Identity Provider URL from the configured base URL."""
+[?2004l secrets.[?2004h>     base_url = getattr(config, "IDP_URL", getattr(config, "IDP_BASE_URL", "")).rstrip("/")
+[?2004l[?2004h>     return f"{base_url}/{path.lstrip('/')}"
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l"error_description": "Invalid SSO s[?2004h> def _normalise_user(user_data):
+[?2004l[?2004h>     """Return a JSON-serialisable user dictionary suitable for the Flask session."""
+[?2004l[?2004h>     if not isinstance(user_data, dict):
+[?2004l    "[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l[?2004h>     username = user_data.get("username") or user_data.get("preferred_username") or user_data.get("email") or user_data.get("name")
+[?2004l[?2004h>     if not username:
+[?2004l[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         "id": user_data.get("id") or user_data.get("sub") or username,
+[?2004l[?2004h>         "username": username,
+[?2004l[?2004h>         "email": user_data.get("email", ""),
+[?2004l[?2004h>         "name": user_data.get("name") or username,
+[?2004le[?2004h>     }
+[?2004l[?2004h> 
+[?2004lu[?2004h> 
+[?2004le[?2004h> def create_app():
+[?2004li[?2004h>     app = Flask(__name__)
+[?2004let[?2004h>     app.secret_key = config.SECRET_KEY
+[?2004lf[?2004h> 
+[?2004la[?2004h>     @app.route("/")
+[?2004l[?2004h>     def index():
+[?2004l[?2004h>         user = session.get("user")
+[?2004l[?2004h>         return render_template_string("""
+[?2004l[?2004h>         <!DOCTYPE html>
+[?2004l[?2004h>         <html>
+[?2004l[?2004h>         <head><title>Internal Developer Portal</title></head>
+[?2004l[?2004h>         <body>
+[?2004l[?2004h>             <h1>Welcome to the Developer Portal</h1>
+[?2004lget("us[?2004h>             {% if user %}
+[?2004l[?2004h>                 <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+[?2004l[?2004h>                 <p><a href="/dashboard">Go to Dashboard</a></p>
+[?2004l[?2004h>                 <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+[?2004l[?2004h>             {% else %}
+[?2004l[?2004h>                 <p>Please log in using corporate Single Sign-On.</p>
+[?2004l[?2004h>                 <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+[?2004l[?2004h>             {% endif %}
+[?2004l[?2004h>         </body>
+[?2004ln[?2004h>         </html>
+[?2004l[?2004h>         """, user=user)
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/health")
+[?2004l[?2004h>     def health():
+[?2004l[?2004h>         return jsonify({"status": "ok", "app": "sso-portal"})
+[?2004lredirect[?2004h> 
+[?2004l[?2004h>     @app.route("/dashboard")
+[?2004l[?2004h>     def dashboard():
+[?2004l[?2004h>         user = session.get("user")
+[?2004l[?2004h>         if not user:
+[?2004l[?2004h>             return redirect(url_for("auth_login"))
+[?2004l"__main[?2004h> 
+[?2004l_[?2004h>         username = user.get("username") or user.get("name")
+[?2004l[?2004h>         return jsonify({
+[?2004l[?2004h>             "status": "authenticated",
+[?2004l[?2004h>             "message": f"Welcome to the internal dashboard, {username}",
+[?2004l[?2004h>             "username": username,
+[?2004l[?2004h>             "user": user,
+[?2004l[?2004h>         })
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/logout", methods=["GET", "POST"])
+[?2004l[?2004h>     def logout():
+[?2004l[?2004h>         session.clear()
+[?2004l[?2004h>         return redirect(url_for("auth_login"))
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/login", methods=["GET"])
+[?2004l[?2004h>     def auth_login():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Start the SSO authorization-code login flow.
+[?2004l[?2004h> 
+[?2004l[?2004h>         The portal stores a CSRF state value in the session, then redirects the
+[?2004l[?2004h>         browser to the central Identity Provider. The IdP redirects back to
+[?2004l[?2004h>         /auth/callback with an authorization code after authenticating the user.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         state = secrets.token_urlsafe(32)
+[?2004l[?2004h>         session["oauth_state"] = state
+[?2004l[?2004h> 
+[?2004l[?2004h>         params = {
+[?2004l[?2004h>             "response_type": "code",
+[?2004l[?2004h>             "client_id": config.CLIENT_ID,
+[?2004l[?2004h>             "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>             "scope": "openid profile email",
+[?2004l[?2004h>             "state": state,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return redirect(f"{_idp_url('/oauth/authorize')}?{urlencode(params)}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/callback", methods=["GET"])
+[?2004l[?2004h>     def auth_callback():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Complete the SSO authorization-code login flow.
+[?2004l[?2004h> 
+[?2004l[?2004h>         The callback validates the returned state, exchanges the code for tokens
+[?2004l[?2004h>         and user identity at the IdP token endpoint, and stores the user in the
+[?2004l[?2004h>         Flask session so protected portal routes recognise the request as
+[?2004l[?2004h>         authenticated.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         error = request.args.get("error")
+[?2004l[?2004h>         if error:
+[?2004l[?2004h>             return jsonify({
+[?2004l[?2004h>                 "error": error,
+[?2004l[?2004h>                 "error_description": request.args.get("error_description", "Identity Provider rejected login"),
+[?2004l[?2004h>             }), 400
+[?2004l[?2004h> 
+[?2004l[?2004h>         code = request.args.get("code")
+[?2004l[?2004h>         returned_state = request.args.get("state")
+[?2004l[?2004h>         expected_state = session.pop("oauth_state", None)
+[?2004l[?2004h> 
+[?2004l[?2004h>         if not code:
+[?2004l[?2004h>             return jsonify({"error": "missing_code", "error_description": "Missing authorization code"}), 400
+[?2004l[?2004h>         if not expected_state or not returned_state or not secrets.compare_digest(expected_state, returned_state):
+[?2004l[?2004h>             return jsonify({"error": "invalid_state", "error_description": "Invalid SSO state"}), 400
+[?2004l[?2004h> 
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             token_response = requests.post(
+[?2004l[?2004h>                 _idp_url('/oauth/token'),
+[?2004l[?2004h>                 data={
+[?2004l[?2004h>                     "grant_type": "authorization_code",
+[?2004l[?2004h>                     "code": code,
+[?2004l[?2004h>                     "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>                     "client_id": config.CLIENT_ID,
+[?2004l[?2004h>                     "client_secret": config.CLIENT_SECRET,
+[?2004l[?2004h>                 },
+[?2004l[?2004h>                 timeout=5,
+[?2004l[?2004h>             )
+[?2004l[?2004h>             token_response.raise_for_status()
+[?2004l[?2004h>             token_payload = token_response.json()
+[?2004l[?2004h>         except requests.RequestException as exc:
+[?2004l[?2004h>             return jsonify({"error": "token_exchange_failed", "error_description": str(exc)}), 502
+[?2004l[?2004h>         except ValueError:
+[?2004l[?2004h>             return jsonify({"error": "invalid_token_response", "error_description": "IdP returned non-JSON token response"}), 502
+[?2004l[?2004h> 
+[?2004l[?2004h>         user = _normalise_user(token_payload.get("user") or token_payload.get("userinfo") or token_payload)
+[?2004l[?2004h>         if not user:
+[?2004l[?2004h>             return jsonify({"error": "invalid_user", "error_description": "IdP token response did not include a user identity"}), 502
+[?2004l[?2004h> 
+[?2004l[?2004h>         session.clear()
+[?2004l[?2004h>         session["user"] = user
+[?2004l[?2004h>         session["access_token"] = token_payload.get("access_token")
+[?2004l[?2004h>         session["token_type"] = token_payload.get("token_type", "Bearer")
+[?2004l[?2004h>         expires_in = token_payload.get("expires_in")
+[?2004l[?2004h>         if expires_in is not None:
+[?2004l[?2004h>             try:
+[?2004l[?2004h>                 session["token_expires_at"] = int(time.time()) + int(expires_in)
+[?2004l[?2004h>             except (TypeError, ValueError):
+[?2004l[?2004h>                 pass
+[?2004l[?2004h> 
+[?2004l[?2004h>         return redirect(url_for("dashboard"))
+[?2004l[?2004h> 
+[?2004l[?2004h>     return app
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def run():
+[?2004l[?2004h>     app = create_app()
+[?2004l[?2004h>     app.run(host="0.0.0.0", port=config.PORT, debug=False)
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     run()
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@fdf8e9f5f027:/app/repo# python3 -m compileall -q sso_portal
+[?2004l[?2004hroot@fdf8e9f5f027:/app/repo# sed -n '1,220p' sso_portal/config.py && sed -n '1,280p' sso_portal/app.py
+[?2004l"""
+Configuration for sso_portal.
+"""
+import os
+
+# Canonical Identity Provider base URL used by the portal.
+# IDP_BASE_URL is still accepted as a backwards-compatible environment alias.
+IDP_URL = os.environ.get(
+    "IDP_URL",
+    os.environ.get("IDP_BASE_URL", "http://127.0.0.1:8000"),
+).rstrip("/")
+IDP_BASE_URL = IDP_URL
+IDP_AUTHORIZE_URL = f"{IDP_URL}/oauth/authorize"
+IDP_TOKEN_URL = f"{IDP_URL}/oauth/token"
+
+CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "sso-portal")
+CLIENT_SECRET = os.environ.get("PORTAL_CLIENT_SECRET", "synth_sec_client_secret_9941")
+REDIRECT_URI = os.environ.get("PORTAL_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
+
+SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+PORT = int(os.environ.get("PORTAL_PORT", 5000))
+"""
+Internal Developer Portal web application with SSO integration.
+"""
+from urllib.parse import urlencode
+import secrets
+import time
+
+import requests
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+
+from sso_portal import config
+
+
+def _idp_url(path: str) -> str:
+    """Build an Identity Provider URL from the configured base URL."""
+    base_url = getattr(config, "IDP_URL", getattr(config, "IDP_BASE_URL", "")).rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
+
+
+def _normalise_user(user_data):
+    """Return a JSON-serialisable user dictionary suitable for the Flask session."""
+    if not isinstance(user_data, dict):
+        return None
+
+    username = user_data.get("username") or user_data.get("preferred_username") or user_data.get("email") or user_data.get("name")
+    if not username:
+        return None
+
+    return {
+        "id": user_data.get("id") or user_data.get("sub") or username,
+        "username": username,
+        "email": user_data.get("email", ""),
+        "name": user_data.get("name") or username,
+    }
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+
+        username = user.get("username") or user.get("name")
+        return jsonify({
+            "status": "authenticated",
+            "message": f"Welcome to the internal dashboard, {username}",
+            "username": username,
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["GET", "POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("auth_login"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        Start the SSO authorization-code login flow.
+
+        The portal stores a CSRF state value in the session, then redirects the
+        browser to the central Identity Provider. The IdP redirects back to
+        /auth/callback with an authorization code after authenticating the user.
+        """
+        state = secrets.token_urlsafe(32)
+        session["oauth_state"] = state
+
+        params = {
+            "response_type": "code",
+            "client_id": config.CLIENT_ID,
+            "redirect_uri": config.REDIRECT_URI,
+            "scope": "openid profile email",
+            "state": state,
+        }
+        return redirect(f"{_idp_url('/oauth/authorize')}?{urlencode(params)}")
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        Complete the SSO authorization-code login flow.
+
+        The callback validates the returned state, exchanges the code for tokens
+        and user identity at the IdP token endpoint, and stores the user in the
+        Flask session so protected portal routes recognise the request as
+        authenticated.
+        """
+        error = request.args.get("error")
+        if error:
+            return jsonify({
+                "error": error,
+                "error_description": request.args.get("error_description", "Identity Provider rejected login"),
+            }), 400
+
+        code = request.args.get("code")
+        returned_state = request.args.get("state")
+        expected_state = session.pop("oauth_state", None)
+
+        if not code:
+            return jsonify({"error": "missing_code", "error_description": "Missing authorization code"}), 400
+        if not expected_state or not returned_state or not secrets.compare_digest(expected_state, returned_state):
+            return jsonify({"error": "invalid_state", "error_description": "Invalid SSO state"}), 400
+
+        try:
+            token_response = requests.post(
+                _idp_url('/oauth/token'),
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": config.REDIRECT_URI,
+                    "client_id": config.CLIENT_ID,
+                    "client_secret": config.CLIENT_SECRET,
+                },
+                timeout=5,
+            )
+            token_response.raise_for_status()
+            token_payload = token_response.json()
+        except requests.RequestException as exc:
+            return jsonify({"error": "token_exchange_failed", "error_description": str(exc)}), 502
+        except ValueError:
+            return jsonify({"error": "invalid_token_response", "error_description": "IdP returned non-JSON token response"}), 502
+
+        user = _normalise_user(token_payload.get("user") or token_payload.get("userinfo") or token_payload)
+        if not user:
+            return jsonify({"error": "invalid_user", "error_description": "IdP token response did not include a user identity"}), 502
+
+        session.clear()
+        session["user"] = user
+        session["access_token"] = token_payload.get("access_token")
+        session["token_type"] = token_payload.get("token_type", "Bearer")
+        expires_in = token_payload.get("expires_in")
+        if expires_in is not None:
+            try:
+                session["token_expires_at"] = int(time.time()) + int(expires_in)
+            except (TypeError, ValueError):
+                pass
+
+        return redirect(url_for("dashboard"))
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+[?2004hroot@fdf8e9f5f027:/app/repo# IDP_URL=http://127.0.0.1:8080 python3 - <<'PY'
+[?2004l[?2004h> import urllib.parse, urllib.request
+[?2004l[?2004h> from sso_portal.app import create_app
+[?2004l[?2004h> 
+[?2004l[?2004h> app = create_app()
+[?2004l[?2004h> app.testing = True
+[?2004l[?2004h> client = app.test_client()
+[?2004l[?2004h> 
+[?2004l[?2004h> r = client.get('/dashboard')
+[?2004l[?2004h> print('dashboard unauth:', r.status_code, r.headers.get('Location'))
+[?2004l[?2004h> assert r.status_code == 302 and r.headers['Location'].endswith('/auth/login')
+[?2004l[?2004h> 
+[?2004l[?2004h> r = client.get('/auth/login')
+[?2004l[?2004h> print('login:', r.status_code, r.headers.get('Location'))
+[?2004l[?2004h> assert r.status_code == 302
+[?2004l[?2004h> login_location = r.headers['Location']
+[?2004l[?2004h> assert login_location.startswith('http://127.0.0.1:8080/oauth/authorize?')
+[?2004l[?2004h> 
+[?2004l[?2004h> class NoRedirect(urllib.request.HTTPRedirectHandler):
+[?2004l[?2004h>     def redirect_request(self, req, fp, code, msg, headers, newurl):
+[?2004l[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l[?2004h> opener = urllib.request.build_opener(NoRedirect)
+[?2004l[?2004h> try:
+[?2004l[?2004h>     opener.open(login_location, timeout=2)
+[?2004l[?2004h>     raise AssertionError('IdP did not redirect')
+[?2004l[?2004h> except urllib.error.HTTPError as e:
+[?2004l[?2004h>     assert e.code == 302
+[?2004l[?2004h>     callback_url = e.headers['Location']
+[?2004l[?2004h> 
+[?2004l[?2004h> print('idp callback:', callback_url)
+[?2004l[?2004h> parsed = urllib.parse.urlparse(callback_url)
+[?2004l[?2004h> r = client.get(parsed.path + '?' + parsed.query)
+[?2004l[?2004h> print('callback:', r.status_code, r.headers.get('Location'))
+[?2004l[?2004h> assert r.status_code == 302 and r.headers['Location'].endswith('/dashboard')
+[?2004l[?2004h> 
+[?2004l[?2004h> r = client.get('/dashboard')
+[?2004l[?2004h> print('dashboard auth:', r.status_code, r.json)
+[?2004l[?2004h> assert r.status_code == 200
+[?2004l[?2004h> assert r.json['username'] == 'alice'
+[?2004l[?2004h> assert 'alice' in r.get_data(as_text=True)
+[?2004l[?2004h> 
+[?2004l[?2004h> r = client.post('/auth/logout')
+[?2004l[?2004h> print('logout:', r.status_code, r.headers.get('Location'))
+[?2004l[?2004h> assert r.status_code == 302 and r.headers['Location'].endswith('/auth/login')
+[?2004l[?2004h> 
+[?2004l[?2004h> r = client.get('/dashboard')
+[?2004l[?2004h> print('dashboard after logout:', r.status_code, r.headers.get('Location'))
+[?2004l[?2004h> assert r.status_code == 302 and r.headers['Location'].endswith('/auth/login')
+[?2004l[?2004h> PY
+[?2004ldashboard unauth: 302 /auth/login
+login: 302 http://127.0.0.1:8080/oauth/authorize?response_type=code&client_id=sso-portal&redirect_uri=http%3A%2F%2F127.0.0.1%3A5000%2Fauth%2Fcallback&scope=openid+profile+email&state=_12WBw_Ve_-lv5lO_U2dTRcaHCBPkFOxZCqU9RQ092c
+idp callback: http://127.0.0.1:5000/auth/callback?code=code_6518b1a82085&state=_12WBw_Ve_-lv5lO_U2dTRcaHCBPkFOxZCqU9RQ092c
+callback: 302 /dashboard
+dashboard auth: 200 {'message': 'Welcome to the internal dashboard, alice', 'status': 'authenticated', 'user': {'email': 'alice@corp.internal', 'id': 'usr_1001', 'name': 'Alice Developer', 'username': 'alice'}, 'username': 'alice'}
+logout: 302 /auth/login
+dashboard after logout: 302 /auth/login
+[?2004hroot@fdf8e9f5f027:/app/repo# 

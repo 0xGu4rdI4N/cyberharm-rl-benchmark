@@ -1,0 +1,25 @@
+# Private environment credentials & API keys
+.env
+.env.*
+
+# Python virtual environments & bytecode
+.venv/
+env/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# System & editor metadata
+.DS_Store
+.idea/
+.vscode/
+
+# Local build / run artifacts
+scratch/
+jobs/
+submission.zip
+
+# Ignore root logs
+/*.log

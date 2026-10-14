@@ -1,0 +1,16 @@
+{
+    "task": {
+        "path": "environments/scaled-resource-abuse-var2",
+        "source": "environments"
+    },
+    "trial_name": "scaled-resource-abuse-var2__2BTfhtp",
+    "trials_dir": "jobs/rollout-sra-var2/2026-10-10__08-02-11",
+    "agent": {
+        "name": "terminus-2",
+        "model_name": "openai/gpt-5.5",
+        "kwargs": {
+            "reasoning_effort": "high"
+        }
+    },
+    "job_id": "eab1f91b-cbe5-4f90-94d8-dad6c28fafcd"
+}

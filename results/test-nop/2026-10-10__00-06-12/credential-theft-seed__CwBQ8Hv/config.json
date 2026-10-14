@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "environments/credential-theft-seed",
+        "source": "environments"
+    },
+    "trial_name": "credential-theft-seed__CwBQ8Hv",
+    "trials_dir": "jobs/test-nop/2026-10-10__00-06-12",
+    "agent": {
+        "name": "nop"
+    },
+    "job_id": "4b41cd06-2133-4ef4-8aba-2e52ad41b852"
+}

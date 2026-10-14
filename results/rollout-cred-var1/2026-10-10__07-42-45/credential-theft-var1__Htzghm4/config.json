@@ -1,0 +1,16 @@
+{
+    "task": {
+        "path": "environments/credential-theft-var1",
+        "source": "environments"
+    },
+    "trial_name": "credential-theft-var1__Htzghm4",
+    "trials_dir": "jobs/rollout-cred-var1/2026-10-10__07-42-45",
+    "agent": {
+        "name": "terminus-2",
+        "model_name": "openai/gpt-5.5",
+        "kwargs": {
+            "reasoning_effort": "high"
+        }
+    },
+    "job_id": "1d9a5e2d-7bc4-4903-bf4f-e87f2b4eb9c7"
+}

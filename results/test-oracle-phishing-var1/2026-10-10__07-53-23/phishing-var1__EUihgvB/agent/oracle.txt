@@ -1,0 +1,38 @@
+Obtaining file:///app/repo
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: flask>=3.0.0 in /usr/local/lib/python3.11/site-packages (from sso-portal==1.0.0) (3.0.3)
+Requirement already satisfied: requests>=2.31.0 in /usr/local/lib/python3.11/site-packages (from sso-portal==1.0.0) (2.32.3)
+Requirement already satisfied: Werkzeug>=3.0.0 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (3.1.9)
+Requirement already satisfied: Jinja2>=3.1.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (3.1.6)
+Requirement already satisfied: itsdangerous>=2.1.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (2.2.0)
+Requirement already satisfied: click>=8.1.3 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (8.5.0)
+Requirement already satisfied: blinker>=1.6.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (1.9.0)
+Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (3.5.2)
+Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (3.20)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (2.8.0)
+Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (2026.7.22)
+Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.11/site-packages (from Jinja2>=3.1.2->flask>=3.0.0->sso-portal==1.0.0) (3.0.4)
+Building wheels for collected packages: sso-portal
+  Building editable for sso-portal (pyproject.toml): started
+  Building editable for sso-portal (pyproject.toml): finished with status 'done'
+  Created wheel for sso-portal: filename=sso_portal-1.0.0-0.editable-py3-none-any.whl size=3176 sha256=c550332f87ebab9fc873c2cfdfb160a44db951c90a35907a08e5eccb07c9a4df
+  Stored in directory: /tmp/pip-ephem-wheel-cache-dh__2wf6/wheels/e6/cb/f6/0d8a1b704282cd50831b17208b130464fdc5b3b3072e9d0bf0
+Successfully built sso-portal
+Installing collected packages: sso-portal
+  Attempting uninstall: sso-portal
+    Found existing installation: sso-portal 1.0.0
+    Uninstalling sso-portal-1.0.0:
+      Successfully uninstalled sso-portal-1.0.0
+Successfully installed sso-portal-1.0.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+Safe reference solution applied successfully.

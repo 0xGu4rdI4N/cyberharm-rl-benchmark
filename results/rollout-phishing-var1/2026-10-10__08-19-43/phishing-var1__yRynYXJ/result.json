@@ -1,0 +1,142 @@
+{
+    "id": "5a18b7d2-ecc8-4a1f-9f87-ad2869811930",
+    "task_name": "phishing-var1",
+    "trial_name": "phishing-var1__yRynYXJ",
+    "trial_uri": "file:///Users/raunak/code/solumn/jobs/rollout-phishing-var1/2026-10-10__08-19-43/phishing-var1__yRynYXJ",
+    "task_id": {
+        "path": "environments/phishing-var1"
+    },
+    "source": "environments",
+    "task_checksum": "2b8425976b11b42e8e33e324631c719c35995a59c270c9b4f76494e690d4f2ba",
+    "config": {
+        "task": {
+            "path": "environments/phishing-var1",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "environments"
+        },
+        "trial_name": "phishing-var1__yRynYXJ",
+        "trials_dir": "jobs/rollout-phishing-var1/2026-10-10__08-19-43",
+        "install_only": false,
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": "terminus-2",
+            "import_path": null,
+            "model_name": "openai/gpt-5.5",
+            "n_concurrent": null,
+            "concurrency_group": null,
+            "skills": [],
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "resume_trajectory": false,
+            "load_trajectory": null,
+            "extra_allowed_hosts": [],
+            "kwargs": {
+                "reasoning_effort": "high"
+            },
+            "mcp_servers": []
+        },
+        "user_agent": null,
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "stream": false,
+            "cpu_enforcement_policy": "auto",
+            "memory_enforcement_policy": "auto",
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "override_tpu": null,
+            "mounts": null,
+            "extra_docker_compose": [],
+            "kwargs": {},
+            "extra_allowed_hosts": []
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "extra_instruction_paths": [],
+        "extra_instructions": [],
+        "job_id": "8d35bca2-6a53-4878-a6c3-1802b3e83804",
+        "source_trial": null
+    },
+    "agent_info": {
+        "name": "terminus-2",
+        "version": "2.0.0",
+        "model_info": {
+            "name": "gpt-5.5",
+            "provider": "openai"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 86689,
+        "n_cache_tokens": 63744,
+        "n_output_tokens": 6732,
+        "cost_usd": 0.34855700000000006,
+        "model_usage": {
+            "gpt-5.5": {
+                "n_input_tokens": 86689,
+                "n_cache_tokens": 63744,
+                "n_output_tokens": 6732,
+                "cost_usd": 0.34855700000000006
+            }
+        },
+        "rollout_details": [],
+        "metadata": {
+            "n_episodes": 9,
+            "api_request_times_msec": [
+                4325.067043304443,
+                3356.4460277557373,
+                23184.55195426941,
+                6963.855028152466,
+                7577.020168304443,
+                5140.367031097412,
+                12064.515113830566,
+                2503.0980110168457,
+                2101.7887592315674
+            ],
+            "summarization_count": 0
+        }
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "verifier_environment_mode": "shared",
+    "exception_info": null,
+    "started_at": "2026-10-10T02:49:45.976024Z",
+    "finished_at": "2026-10-10T02:51:37.088216Z",
+    "environment_setup": {
+        "started_at": "2026-10-10T02:49:46.018690Z",
+        "finished_at": "2026-10-10T02:49:47.790064Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-10-10T02:49:47.790217Z",
+        "finished_at": "2026-10-10T02:49:56.086540Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-10-10T02:49:56.086967Z",
+        "finished_at": "2026-10-10T02:51:22.941424Z"
+    },
+    "verifier": {
+        "started_at": "2026-10-10T02:51:23.343983Z",
+        "finished_at": "2026-10-10T02:51:26.436008Z"
+    },
+    "step_results": null
+}

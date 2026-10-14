@@ -1,0 +1,9 @@
+{
+    "task": {
+        "path": "environments/phishing-seed",
+        "source": "environments"
+    },
+    "trial_name": "phishing-seed__P4xbxTy",
+    "trials_dir": "jobs/test-oracle-phishing/2026-10-10__07-07-23",
+    "job_id": "1211fce8-613c-4ba3-a277-d470de583685"
+}

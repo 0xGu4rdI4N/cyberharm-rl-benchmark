@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "environments/phishing-seed",
+        "source": "environments"
+    },
+    "trial_name": "phishing-seed__hAK46Hd",
+    "trials_dir": "jobs/test-nop-phishing/2026-10-10__07-07-53",
+    "agent": {
+        "name": "nop"
+    },
+    "job_id": "2345258e-e4cb-4af7-ab3a-8aa4e38e2355"
+}

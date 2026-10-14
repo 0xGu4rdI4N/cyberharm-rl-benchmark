@@ -1,0 +1,11 @@
+{
+    "jobs_dir": "jobs/test-oracle-phishing",
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "phishing-seed"
+            ]
+        }
+    ]
+}

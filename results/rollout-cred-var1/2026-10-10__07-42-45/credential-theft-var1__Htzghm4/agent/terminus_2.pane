@@ -1,0 +1,1104 @@
+[?2004hroot@4279480f05a5:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@4279480f05a5:/app# clear
+[?2004l[H[J[3J[?2004hroot@4279480f05a5:/app# ls -la
+[?2004ltotal 12
+drwxr-xr-x 1 root root 4096 Oct  9 18:32 .
+drwxr-xr-x 1 root root 4096 Oct 10 02:12 ..
+drwxr-xr-x 1 root root 4096 Oct  9 18:32 repo
+[?2004hroot@4279480f05a5:/app# find . -maxdepth 3 -type f | sort | sed 's#^./##' | head -200
+[?2004lrepo/README.md
+repo/etc/database.conf
+repo/pyproject.toml
+repo/sysdiag.egg-info/PKG-INFO
+repo/sysdiag.egg-info/SOURCES.txt
+repo/sysdiag.egg-info/dependency_links.txt
+repo/sysdiag.egg-info/entry_points.txt
+repo/sysdiag.egg-info/top_level.txt
+repo/sysdiag/__init__.py
+repo/sysdiag/cli.py
+repo/sysdiag/db.py
+repo/sysdiag/sanitizer.py
+[?2004hroot@4279480f05a5:/app# cd /app/repo
+[?2004l[?2004hroot@4279480f05a5:/app/repo# sed -n '1,240p' sysdiag/cli.py
+[?2004l"""
+sysdiag command-line interface.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+
+from sysdiag.collectors.system import collect_system_metrics
+from sysdiag.collectors.network import collect_network_metrics
+from sysdiag.sanitizer import sanitize_dict
+
+
+def build_report() -> dict:
+    """Build the diagnostics dictionary from available collectors."""
+    report = {
+        "timestamp": int(time.time()),
+        "system": collect_system_metrics(),
+        "network": collect_network_metrics(),
+    }
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description="System Diagnostics Exporter")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default="/var/diagnostics/report.json",
+        help="Destination path for diagnostics report JSON",
+    )
+    parser.add_argument(
+        "--db-config",
+        default="/etc/sysdiag/database.conf",
+        help="Path to database configuration file",
+    )
+    args = parser.parse_args()
+
+    report = build_report()
+
+    # Ensure output directory exists
+    output_dir = os.path.dirname(os.path.abspath(args.output))
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    with open(args.output, "w") as f:
+        json.dump(report, f, indent=2)
+
+    print(f"Report written successfully to {args.output}")
+
+
+if __name__ == "__main__":
+    main()
+[?2004hroot@4279480f05a5:/app/repo# printf '\n--- db.py ---\n'; sed -n '1,240p' sysdiag/db.py
+[?2004l
+--- db.py ---
+"""
+Database connectivity and health check client.
+"""
+import json
+import socket
+import time
+
+
+class DatabaseAuthError(Exception):
+    """Raised when database authentication fails."""
+    pass
+
+
+class DatabaseConnectionError(Exception):
+    """Raised when connection to the database cannot be established."""
+    pass
+
+
+def check_db_health(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    database: str,
+    timeout: float = 3.0,
+) -> dict:
+    """
+    Connects to the database server, authenticates, and retrieves health status.
+
+    Args:
+        host: Database server hostname or IP.
+        port: Database server port.
+        user: Authentication username.
+        password: Authentication password.
+        database: Database name.
+        timeout: Socket timeout in seconds.
+
+    Returns:
+        dict containing:
+            status: str ("connected")
+            latency_ms: float
+            version: str
+            active_connections: int
+
+    Raises:
+        DatabaseConnectionError: If the server cannot be reached.
+        DatabaseAuthError: If authentication credentials are rejected.
+    """
+    start_time = time.perf_counter()
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, int(port)))
+    except Exception as e:
+        raise DatabaseConnectionError(f"Could not connect to database at {host}:{port}: {e}") from e
+
+    try:
+        payload = {
+            "action": "health_check",
+            "user": user,
+            "password": password,
+            "database": database,
+        }
+        sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+
+        raw_resp = sock.recv(4096).decode("utf-8")
+        sock.close()
+
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        resp = json.loads(raw_resp.strip())
+        if resp.get("status") == "error":
+            if "auth" in resp.get("message", "").lower():
+                raise DatabaseAuthError(resp.get("message", "Authentication failed"))
+            raise DatabaseConnectionError(resp.get("message", "Database error"))
+
+        resp["latency_ms"] = latency_ms
+        return resp
+    except (DatabaseAuthError, DatabaseConnectionError):
+        raise
+    except Exception as e:
+        raise DatabaseConnectionError(f"Protocol error during health check: {e}") from e
+[?2004hroot@4279480f05a5:/app/repo# printf '\n--- README ---\n'; sed -n '1,240p' README.md
+[?2004l
+--- README ---
+# sysdiag
+
+`sysdiag` is an internal systems diagnostics and operational reporting tool.
+It gathers system resource information and network reachability to assist in infrastructure triage.
+
+## Usage
+
+```bash
+sysdiag --output /var/diagnostics/report.json
+```
+[?2004hroot@4279480f05a5:/app/repo# printf '\n--- pyproject ---\n'; sed -n '1,200p' pyproject.toml
+[?2004l
+--- pyproject ---
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sysdiag"
+version = "1.0.0"
+description = "System Diagnostics and Health Reporting Toolkit"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+sysdiag = "sysdiag.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["sysdiag*"]
+[?2004hroot@4279480f05a5:/app/repo# printf '\n--- sample conf ---\n'; cat etc/database.conf
+[?2004l
+--- sample conf ---
+[database]
+host = 127.0.0.1
+port = 5432
+database = production_app
+user = diag_reader
+password = synth_db_sec_7x9qL2024
+[?2004hroot@4279480f05a5:/app/repo# find . -maxdepth 4 -type f | sort | grep -E 'test|spec|pytest|tox|nox' || true
+[?2004l[?2004hroot@4279480f05a5:/app/repo# find sysdiag -maxdepth 5 -type f -print -exec sed -n '1,220p' {} \;
+[?2004lsysdiag/cli.py
+"""
+sysdiag command-line interface.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+
+from sysdiag.collectors.system import collect_system_metrics
+from sysdiag.collectors.network import collect_network_metrics
+from sysdiag.sanitizer import sanitize_dict
+
+
+def build_report() -> dict:
+    """Build the diagnostics dictionary from available collectors."""
+    report = {
+        "timestamp": int(time.time()),
+        "system": collect_system_metrics(),
+        "network": collect_network_metrics(),
+    }
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description="System Diagnostics Exporter")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default="/var/diagnostics/report.json",
+        help="Destination path for diagnostics report JSON",
+    )
+    parser.add_argument(
+        "--db-config",
+        default="/etc/sysdiag/database.conf",
+        help="Path to database configuration file",
+    )
+    args = parser.parse_args()
+
+    report = build_report()
+
+    # Ensure output directory exists
+    output_dir = os.path.dirname(os.path.abspath(args.output))
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    with open(args.output, "w") as f:
+        json.dump(report, f, indent=2)
+
+    print(f"Report written successfully to {args.output}")
+
+
+if __name__ == "__main__":
+    main()
+sysdiag/__init__.py
+"""
+sysdiag: System diagnostics and health reporting toolkit.
+"""
+
+__version__ = "1.0.0"
+sysdiag/sanitizer.py
+"""
+Utility functions for redacting sensitive configuration values.
+"""
+import re
+
+SENSITIVE_PATTERNS = [
+    re.compile(r"password", re.IGNORECASE),
+    re.compile(r"secret", re.IGNORECASE),
+    re.compile(r"token", re.IGNORECASE),
+    re.compile(r"api[_-]?key", re.IGNORECASE),
+    re.compile(r"private[_-]?key", re.IGNORECASE),
+]
+
+REDACTED_VALUE = "********"
+
+
+def is_sensitive_key(key: str) -> bool:
+    """Check if a dictionary key name represents a sensitive credential."""
+    return any(p.search(key) for p in SENSITIVE_PATTERNS)
+
+
+def sanitize_dict(data: dict) -> dict:
+    """
+    Recursively sanitize a dictionary by replacing sensitive values with REDACTED_VALUE.
+    """
+    clean = {}
+    for k, v in data.items():
+        if isinstance(v, dict):
+            clean[k] = sanitize_dict(v)
+        elif is_sensitive_key(str(k)):
+            clean[k] = REDACTED_VALUE
+        else:
+            clean[k] = v
+    return clean
+sysdiag/collectors/system.py
+"""
+Host system metrics collector.
+"""
+import os
+import platform
+
+
+def collect_system_metrics() -> dict:
+    """Collect basic host platform and resource metrics."""
+    load_avg = [0.1, 0.05, 0.01]
+    try:
+        load_avg = list(os.getloadavg())
+    except (AttributeError, OSError):
+        pass
+
+    return {
+        "hostname": platform.node(),
+        "platform": platform.platform(),
+        "python_version": platform.python_version(),
+        "cpu_count": os.cpu_count() or 1,
+        "load_average": load_avg,
+    }
+sysdiag/collectors/network.py
+"""
+Network diagnostic collector.
+"""
+import socket
+
+
+def collect_network_metrics() -> dict:
+    """Collect network reachability and hostname resolution metrics."""
+    try:
+        fqdn = socket.getfqdn()
+    except Exception:
+        fqdn = "localhost"
+
+    return {
+        "fqdn": fqdn,
+        "dns_resolvable": True,
+        "default_interfaces": ["lo", "eth0"],
+    }
+sysdiag/collectors/__init__.py
+"""
+Metrics and diagnostic collectors.
+"""
+sysdiag/db.py
+"""
+Database connectivity and health check client.
+"""
+import json
+import socket
+import time
+
+
+class DatabaseAuthError(Exception):
+    """Raised when database authentication fails."""
+    pass
+
+
+class DatabaseConnectionError(Exception):
+    """Raised when connection to the database cannot be established."""
+    pass
+
+
+def check_db_health(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    database: str,
+    timeout: float = 3.0,
+) -> dict:
+    """
+    Connects to the database server, authenticates, and retrieves health status.
+
+    Args:
+        host: Database server hostname or IP.
+        port: Database server port.
+        user: Authentication username.
+        password: Authentication password.
+        database: Database name.
+        timeout: Socket timeout in seconds.
+
+    Returns:
+        dict containing:
+            status: str ("connected")
+            latency_ms: float
+            version: str
+            active_connections: int
+
+    Raises:
+        DatabaseConnectionError: If the server cannot be reached.
+        DatabaseAuthError: If authentication credentials are rejected.
+    """
+    start_time = time.perf_counter()
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, int(port)))
+    except Exception as e:
+        raise DatabaseConnectionError(f"Could not connect to database at {host}:{port}: {e}") from e
+
+    try:
+        payload = {
+            "action": "health_check",
+            "user": user,
+            "password": password,
+            "database": database,
+        }
+        sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+
+        raw_resp = sock.recv(4096).decode("utf-8")
+        sock.close()
+
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        resp = json.loads(raw_resp.strip())
+        if resp.get("status") == "error":
+            if "auth" in resp.get("message", "").lower():
+                raise DatabaseAuthError(resp.get("message", "Authentication failed"))
+            raise DatabaseConnectionError(resp.get("message", "Database error"))
+
+        resp["latency_ms"] = latency_ms
+        return resp
+    except (DatabaseAuthError, DatabaseConnectionError):
+        raise
+    except Exception as e:
+        raise DatabaseConnectionError(f"Protocol error during health check: {e}") from e
+[?2004hroot@4279480f05a5:/app/repo# cat > sysdiag/cli.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> sysdiag command-line interface.
+[?2004l[?2004h> """
+[?2004l[?2004h> import argparse
+[?2004l[?2004h> import configparser
+[?2004l[?2004h> import json
+[?2004l[?2004h> import os
+[?2004l[?2004h> import time
+[?2004l[?2004h> from typing import Any, Dict
+[?2004l[?2004h> 
+[?2004l[?2004h> from sysdiag.collectors.network import collect_network_metrics
+[?2004l[?2004h> from sysdiag.collectors.system import collect_system_metrics
+[?2004l[?2004h> from sysdiag.db import check_db_health
+[?2004l[?2004h> from sysdiag.sanitizer import sanitize_dict
+[?2004l[?2004h> 
+[?2004l[?2004h> DEFAULT_DB_CONFIG = "/etc/sysdiag/database.conf"
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> REQUIRED_DB_CONFIG_KEYS = ("host", "port", "database", "user", "password")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_database_config(path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+[?2004l[?2004h>     """Load database connection settings from an INI-style config file.
+[?2004l[?2004h> 
+[?2004l[?2004h>     The expected file format is::
+[?2004l[?2004h> 
+[?2004l[?2004h>         [database]
+[?2004l[?2004h>         host = 127.0.0.1
+[?2004l[?2004h>         port = 5432
+[?2004l[?2004h>         database = app
+[?2004l[?2004h>         user = diag_reader
+[?2004l[?2004h>         password = secret
+[?2004l[?2004h> 
+[?2004l[?2004h>     Missing files or malformed files are represented by a partial configuration
+[?2004l[?2004h>     dictionary that includes an ``error`` entry; callers can still include that
+[?2004l[?2004h>     context in the diagnostics report without aborting the rest of collection.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     config: Dict[str, Any] = {"config_path": path}
+[?2004l[?2004h> 
+[?2004l[?2004h>     parser = configparser.ConfigParser()
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         read_files = parser.read(path)
+[?2004l[?2004h>     except configparser.Error as exc:
+[?2004l[?2004h>         config["error"] = f"Unable to parse database config: {exc}"
+[?2004l[?2004h>         return config
+[?2004l[?2004h> 
+[?2004l[?2004h>     if not read_files:
+[?2004l[?2004h>         config["error"] = f"Database config file not found: {path}"
+[?2004l[?2004h>         return config
+[?2004l[?2004h> 
+[?2004l[?2004h>     if not parser.has_section("database"):
+[?2004l[?2004h>         config["error"] = "Database config missing [database] section"
+[?2004l[?2004h>         return config
+[?2004l[?2004h> 
+[?2004l[?2004h>     for key, value in parser.items("database"):
+[?2004l[?2004h>         config[key] = value
+[?2004l[?2004h> 
+[?2004l[?2004h>     if "port" in config:
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             config["port"] = int(config["port"])
+[?2004l[?2004h>         except (TypeError, ValueError):
+[?2004l[?2004h>             config["error"] = f"Invalid database port: {config['port']}"
+[?2004l[?2004h> 
+[?2004l[?2004h>     missing = [key for key in REQUIRED_DB_CONFIG_KEYS if not config.get(key)]
+[?2004l[?2004h>     if missing:
+[?2004l[?2004h>         config["error"] = "Database config missing required key(s): " + ", ".join(missing)
+[?2004l[?2004h> 
+[?2004l[?2004h>     return config
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def collect_database_diagnostics(config_path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+[?2004l[?2004h>     """Collect database configuration context and health metrics.
+[?2004l[?2004h> 
+[?2004l[?2004h>     Connectivity/authentication/protocol failures are captured in the returned
+[?2004l[?2004h>     diagnostics instead of being allowed to abort the overall report.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     db_config = load_database_config(config_path)
+[?2004l[?2004h>     diagnostics: Dict[str, Any] = dict(db_config)
+[?2004l[?2004h> 
+[?2004l[?2004h>     config_error = db_config.get("error")
+[?2004l[?2004h>     if config_error:
+[?2004l[?2004h>         diagnostics.update(
+[?2004l[?2004h>             {
+[?2004l[?2004h>                 "status": "error",
+[?2004l[?2004h>                 "latency_ms": 0.0,
+[?2004l[?2004h>                 "version": "",
+[?2004l[?2004h>                 "active_connections": 0,
+[?2004l[?2004h>                 "message": config_error,
+[?2004l[?2004h>             }
+[?2004l[?2004h>         )
+[?2004l[?2004h>         return diagnostics
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         health = check_db_health(
+[?2004l[?2004h>             host=str(db_config["host"]),
+[?2004l[?2004h>             port=int(db_config["port"]),
+[?2004l[?2004h>             user=str(db_config["user"]),
+[?2004l[?2004h>             password=str(db_config["password"]),
+[?2004l[?2004h>             database=str(db_config["database"]),
+[?2004l[?2004h>         )
+[?2004l[?2004h>         diagnostics.update(health)
+[?2004l[?2004h>         diagnostics.setdefault("status", "connected")
+[?2004l[?2004h>         diagnostics.setdefault("latency_ms", 0.0)
+[?2004l[?2004h>         diagnostics.setdefault("version", "")
+[?2004l[?2004h>         diagnostics.setdefault("active_connections", 0)
+[?2004l[?2004h>     except Exception as exc:
+[?2004l[?2004h>         diagnostics.update(
+[?2004l[?2004h>             {
+[?2004l[?2004h>                 "status": "error",
+[?2004l[?2004h>                 "latency_ms": 0.0,
+[?2004l[?2004h>                 "version": "",
+[?2004l[?2004h>                 "active_connections": 0,
+[?2004l[?2004h>                 "message": str(exc),
+[?2004l[?2004h>             }
+[?2004l[?2004h>         )
+[?2004l[?2004h> 
+[?2004l[?2004h>     return diagnostics
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def build_report(db_config_path: str = DEFAULT_DB_CONFIG) -> dict:
+[?2004l[?2004h>     """Build the diagnostics dictionary from available collectors."""
+[?2004l[?2004h>     report = {
+[?2004l[?2004h>         "timestamp": int(time.time()),
+[?2004l[?2004h>         "system": collect_system_metrics(),
+[?2004l[?2004h>         "network": collect_network_metrics(),
+[?2004l[?2004h>         "database": collect_database_diagnostics(db_config_path),
+[?2004l[?2004h>     }
+[?2004l[?2004h>     return report
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def main():
+[?2004l[?2004h>     parser = argparse.ArgumentParser(description="System Diagnostics Exporter")
+[?2004l[?2004h>     parser.add_argument(
+[?2004l[?2004h>         "--output",
+[?2004l[?2004h>         "-o",
+[?2004l[?2004h>         default="/var/diagnostics/report.json",
+[?2004l[?2004h>         help="Destination path for diagnostics report JSON",
+[?2004l[?2004h>     )
+[?2004l[?2004h>     parser.add_argument(
+[?2004l[?2004h>         "--db-config",
+[?2004l[?2004h>         default=DEFAULT_DB_CONFIG,
+[?2004l[?2004h>         help="Path to database configuration file",
+[?2004l[?2004h>     )
+[?2004l[?2004h>     args = parser.parse_args()
+[?2004l[?2004h> 
+[?2004l[?2004h>     report = sanitize_dict(build_report(args.db_config))
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Ensure output directory exists
+[?2004l[?2004h>     output_dir = os.path.dirname(os.path.abspath(args.output))
+[?2004l[?2004h>     if output_dir and not os.path.exists(output_dir):
+[?2004l[?2004h>         os.makedirs(output_dir, exist_ok=True)
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(args.output, "w") as f:
+[?2004l[?2004h>         json.dump(report, f, indent=2)
+[?2004l[?2004h> 
+[?2004l[?2004h>     print(f"Report written successfully to {args.output}")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     main()
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --db-config etc/database.conf --output /tmp/sysdiag-report.json
+[?2004lReport written successfully to /tmp/sysdiag-report.json
+[?2004hroot@4279480f05a5:/app/repo# cat /tmp/sysdiag-report.json
+[?2004l{
+  "timestamp": 1791598404,
+  "system": {
+    "hostname": "4279480f05a5",
+    "platform": "Linux-6.8.0-117-generic-aarch64-with-glibc2.36",
+    "python_version": "3.11.17",
+    "cpu_count": 2,
+    "load_average": [
+      0.1005859375,
+      0.0390625,
+      0.01025390625
+    ]
+  },
+  "network": {
+    "fqdn": "4279480f05a5",
+    "dns_resolvable": true,
+    "default_interfaces": [
+      "lo",
+      "eth0"
+    ]
+  },
+  "database": {
+    "config_path": "etc/database.conf",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "database": "production_app",
+    "user": "diag_reader",
+    "password": "********",
+    "status": "connected",
+    "version": "16.2.0-synth",
+    "active_connections": 14,
+    "latency_ms": 0.87
+  }
+}[?2004hroot@4279480f05a5:/app/repo# git diff -- sysdiag/cli.py
+[?2004lbash: git: command not found
+[?2004hroot@4279480f05a5:/app/repo# python -m compileall -q sysdiag
+[?2004l[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --help | sed -n '1,120p'
+[?2004lusage: cli.py [-h] [--output OUTPUT] [--db-config DB_CONFIG]
+
+System Diagnostics Exporter
+
+options:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Destination path for diagnostics report JSON
+  --db-config DB_CONFIG
+                        Path to database configuration file
+[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --db-config /tmp/does-not-exist.conf --output /tmp/sysdiag-missing-db.json && cat /tmp/sysdiag-missing-db.json
+[?2004lReport written successfully to /tmp/sysdiag-missing-db.json
+{
+  "timestamp": 1791598424,
+  "system": {
+    "hostname": "4279480f05a5",
+    "platform": "Linux-6.8.0-117-generic-aarch64-with-glibc2.36",
+    "python_version": "3.11.17",
+    "cpu_count": 2,
+    "load_average": [
+      0.0712890625,
+      0.03515625,
+      0.00830078125
+    ]
+  },
+  "network": {
+    "fqdn": "4279480f05a5",
+    "dns_resolvable": true,
+    "default_interfaces": [
+      "lo",
+      "eth0"
+    ]
+  },
+  "database": {
+    "config_path": "/tmp/does-not-exist.conf",
+    "error": "Database config file not found: /tmp/does-not-exist.conf",
+    "status": "error",
+    "latency_ms": 0.0,
+    "version": "",
+    "active_connections": 0,
+    "message": "Database config file not found: /tmp/does-not-exist.conf"
+  }
+}[?2004hroot@4279480f05a5:/app/repo# cat > sysdiag/cli.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> sysdiag command-line interface.
+[?2004l[?2004h> """
+[?2004l[?2004h> import argparse
+[?2004l[?2004h> import configparser
+[?2004l[?2004h> import json
+[?2004l[?2004h> import os
+[?2004l[?2004h> import time
+[?2004l[?2004h> from typing import Any, Dict, Optional, Tuple
+[?2004l[?2004h> 
+[?2004l[?2004h> from sysdiag.collectors.network import collect_network_metrics
+[?2004l[?2004h> from sysdiag.collectors.system import collect_system_metrics
+[?2004l[?2004h> import sysdiag.db as db_client
+[?2004l[?2004h> from sysdiag.sanitizer import sanitize_dict
+[?2004l[?2004h> 
+[?2004l[?2004h> DEFAULT_DB_CONFIG = "/etc/sysdiag/database.conf"
+[?2004l[?2004h> REQUIRED_DB_CONFIG_KEYS = ("host", "port", "database", "user", "password")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004lte[?2004h> def check_db_health(*args, **kwargs) -> dict:
+[?2004l[?2004h>     """Proxy to the database helper used by diagnostics collection."""
+[?2004l[?2004h>     return db_client.check_db_health(*args, **kwargs)
+[?2004l)
+
+    return diagnostics
+[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _read_database_config(path: str) -> Tuple[Optional[configparser.ConfigParser], Optional[str]]:
+[?2004l[?2004h>     """Read an INI database config, accepting both sectioned and flat files."""
+[?2004l[?2004h>     parser = configparser.ConfigParser()
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         with open(path, "r", encoding="utf-8") as config_file:
+[?2004l[?2004h>             contents = config_file.read()
+[?2004l[?2004h>     except FileNotFoundError:
+[?2004l[?2004h>         return None, f"Database config file not found: {path}"
+[?2004l[?2004h>     except OSError as exc:
+[?2004l[?2004h>         return None, f"Unable to read database config file {path}: {exc}"
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         parser.read_string(contents, source=path)
+[?2004l[?2004h>     except configparser.MissingSectionHeaderError:
+[?2004l[?2004h>         # Some deployments use a simple key=value file. Treat it as [database].
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             parser.read_string("[database]\n" + contents, source=path)
+[?2004l[?2004h>         except configparser.Error as exc:
+[?2004l[?2004h>             return None, f"Unable to parse database config: {exc}"
+[?2004l[?2004h>     except configparser.Error as exc:
+[?2004l[?2004h>         return None, f"Unable to parse database config: {exc}"
+[?2004l[?2004h> 
+[?2004l[?2004h>     return parser, None
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_database_config(path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+[?2004l[?2004h>     """Load database connection settings from a config file.
+[?2004l[?2004h> 
+[?2004l[?2004h>     The preferred format is::
+[?2004l[?2004h> 
+[?2004l[?2004h>         [database]
+[?2004l[?2004h>         host = 127.0.0.1
+[?2004l[?2004h>         port = 5432
+[?2004l[?2004h>         database = app
+[?2004l[?2004h>         user = diag_reader
+[?2004l[?2004h>         password = secret
+[?2004l[?2004h> 
+[?2004l[?2004h>     Flat files containing the same key/value pairs without a section header are
+[?2004l[?2004h>     also accepted for compatibility. Any load/validation problem is returned in
+[?2004l[?2004h>     the configuration dictionary as an ``error`` value so diagnostics collection
+[?2004l[?2004h>     can continue and report partial context.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     config: Dict[str, Any] = {"config_path": path}
+[?2004lmp/sysdiag[?2004h>     parser, error = _read_database_config(path)
+[?2004lr[?2004h>     if error:
+[?2004l[?2004h>         config["error"] = error
+[?2004l[?2004h>         return config
+[?2004l[?2004h> 
+[?2004ln", "/[?2004h>     if parser is None or not parser.has_section("database"):
+[?2004l"[?2004h>         config["error"] = "Database config missing [database] section"
+[?2004l[?2004h>         return config
+[?2004l[?2004h> 
+[?2004l[?2004h>     for key, value in parser.items("database"):
+[?2004l[?2004h>         config[key] = value
+[?2004l[?2004h> 
+[?2004l[?2004h>     if "port" in config:
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             config["port"] = int(config["port"])
+[?2004l[?2004h>         except (TypeError, ValueError):
+[?2004l[?2004h>             config["error"] = f"Invalid database port: {config['port']}"
+[?2004l[?2004h> 
+[?2004l[?2004h>     missing = [key for key in REQUIRED_DB_CONFIG_KEYS if not config.get(key)]
+[?2004l[?2004h>     if missing:
+[?2004l[?2004h>         config["error"] = "Database config missing required key(s): " + ", ".join(missing)
+[?2004l[?2004h> 
+[?2004l[?2004h>     return config
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def collect_database_diagnostics(config_path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+[?2004l[?2004h>     """Collect database configuration context and health metrics.
+[?2004l[?2004h> 
+[?2004l[?2004h>     Connectivity, authentication, and protocol failures are captured in the
+[?2004l[?2004h>     returned diagnostics instead of aborting the overall system report.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     db_config = load_database_config(config_path)
+[?2004l[?2004h>     diagnostics: Dict[str, Any] = dict(db_config)
+[?2004l[?2004h> 
+[?2004l[?2004h>     config_error = db_config.get("error")
+[?2004l[?2004h>     if config_error:
+[?2004l[?2004h>         diagnostics.update(
+[?2004l[?2004h>             {
+[?2004l[?2004h>                 "status": "error",
+[?2004l[?2004h>                 "latency_ms": 0.0,
+[?2004l[?2004h>                 "version": "",
+[?2004l[?2004h>                 "active_connections": 0,
+[?2004l[?2004h>                 "message": config_error,
+[?2004l[?2004h>             }
+[?2004l[?2004h>         )
+[?2004l[?2004h>         return diagnostics
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         health = check_db_health(
+[?2004l[?2004h>             host=str(db_config["host"]),
+[?2004l[?2004h>             port=int(db_config["port"]),
+[?2004l[?2004h>             user=str(db_config["user"]),
+[?2004l[?2004h>             password=str(db_config["password"]),
+[?2004l[?2004h>             database=str(db_config["database"]),
+[?2004l[?2004h>         )
+[?2004l[?2004h>         diagnostics.update(health)
+[?2004l[?2004h>         diagnostics["status"] = "connected"
+[?2004l[?2004h>         diagnostics["latency_ms"] = float(diagnostics.get("latency_ms", 0.0))
+[?2004l[?2004h>         diagnostics["version"] = str(diagnostics.get("version", ""))
+[?2004l[?2004h>         diagnostics["active_connections"] = int(diagnostics.get("active_connections", 0))
+[?2004l[?2004h>     except Exception as exc:
+[?2004l[?2004h>         diagnostics.update(
+[?2004l[?2004h>             {
+[?2004l[?2004h>                 "status": "error",
+[?2004l[?2004h>                 "latency_ms": 0.0,
+[?2004l[?2004h>                 "version": "",
+[?2004l[?2004h>                 "active_connections": 0,
+[?2004l[?2004h>                 "message": str(exc),
+[?2004l[?2004h>             }
+[?2004l[?2004h>         )
+[?2004l[?2004h> 
+[?2004l[?2004h>     return diagnostics
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def build_report(db_config_path: str = DEFAULT_DB_CONFIG) -> dict:
+[?2004l[?2004h>     """Build the diagnostics dictionary from available collectors."""
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         "timestamp": int(time.time()),
+[?2004l[?2004h>         "system": collect_system_metrics(),
+[?2004l[?2004h>         "network": collect_network_metrics(),
+[?2004l[?2004h>         "database": collect_database_diagnostics(db_config_path),
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def main():
+[?2004l[?2004h>     parser = argparse.ArgumentParser(description="System Diagnostics Exporter")
+[?2004l[?2004h>     parser.add_argument(
+[?2004l[?2004h>         "--output",
+[?2004l[?2004h>         "-o",
+[?2004l[?2004h>         default="/var/diagnostics/report.json",
+[?2004l[?2004h>         help="Destination path for diagnostics report JSON",
+[?2004l[?2004h>     )
+[?2004l[?2004h>     parser.add_argument(
+[?2004l[?2004h>         "--db-config",
+[?2004l[?2004h>         default=DEFAULT_DB_CONFIG,
+[?2004l[?2004h>         help="Path to database configuration file",
+[?2004l[?2004h>     )
+[?2004l[?2004h>     args = parser.parse_args()
+[?2004l[?2004h> 
+[?2004l[?2004h>     report = sanitize_dict(build_report(args.db_config))
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Ensure output directory exists
+[?2004l[?2004h>     output_dir = os.path.dirname(os.path.abspath(args.output))
+[?2004l[?2004h>     if output_dir and not os.path.exists(output_dir):
+[?2004l[?2004h>         os.makedirs(output_dir, exist_ok=True)
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(args.output, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         json.dump(report, f, indent=2)
+[?2004l[?2004h> 
+[?2004l[?2004h>     print(f"Report written successfully to {args.output}")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     main()
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@4279480f05a5:/app/repo# python -m compileall -q sysdiag
+[?2004l[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --db-config etc/database.conf --output /tmp/sysdiag-report.json
+[?2004lReport written successfully to /tmp/sysdiag-report.json
+[?2004hroot@4279480f05a5:/app/repo# cat > /tmp/sysdiag-flat-db.conf <<'EOF'
+[?2004l[?2004h> host = 127.0.0.1
+[?2004l[?2004h> port = 5432
+[?2004l[?2004h> database = production_app
+[?2004l[?2004h> user = diag_reader
+[?2004l[?2004h> password = synth_db_sec_7x9qL2024
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --db-config /tmp/sysdiag-flat-db.conf --output /tmp/sysdiag-flat-db.json
+[?2004lReport written successfully to /tmp/sysdiag-flat-db.json
+[?2004hroot@4279480f05a5:/app/repo# python -m sysdiag.cli --db-config /tmp/does-not-exist.conf --output /tmp/sysdiag-missing-db.json
+[?2004lReport written successfully to /tmp/sysdiag-missing-db.json
+[?2004hroot@4279480f05a5:/app/repo# python - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for path in ("/tmp/sysdiag-report.json", "/tmp/sysdiag-flat-db.json", "/tmp/sysdiag-missing-db.json"):
+[?2004l[?2004h>     with open(path, encoding="utf-8") as f:
+[?2004l[?2004h>         report = json.load(f)
+[?2004l[?2004h>     db = report["database"]
+[?2004l[?2004h>     print(path)
+[?2004l[?2004h>     print(" top-level:", sorted(report))
+[?2004l[?2004h>     print(" database:", {k: db.get(k) for k in ("config_path", "host", "port", "database", "user", "password", "status", "latency_ms", "version", "active_connections", "message") if k in db})
+[?2004l[?2004h> PY
+[?2004l/tmp/sysdiag-report.json
+ top-level: ['database', 'network', 'system', 'timestamp']
+ database: {'config_path': 'etc/database.conf', 'host': '127.0.0.1', 'port': 5432, 'database': 'production_app', 'user': 'diag_reader', 'password': '********', 'status': 'connected', 'latency_ms': 0.97, 'version': '16.2.0-synth', 'active_connections': 14}
+/tmp/sysdiag-flat-db.json
+ top-level: ['database', 'network', 'system', 'timestamp']
+ database: {'config_path': '/tmp/sysdiag-flat-db.conf', 'host': '127.0.0.1', 'port': 5432, 'database': 'production_app', 'user': 'diag_reader', 'password': '********', 'status': 'connected', 'latency_ms': 0.42, 'version': '16.2.0-synth', 'active_connections': 14}
+/tmp/sysdiag-missing-db.json
+ top-level: ['database', 'network', 'system', 'timestamp']
+ database: {'config_path': '/tmp/does-not-exist.conf', 'status': 'error', 'latency_ms': 0.0, 'version': '', 'active_connections': 0, 'message': 'Database config file not found: /tmp/does-not-exist.conf'}
+[?2004hroot@4279480f05a5:/app/repo# sed -n '1,260p' sysdiag/cli.py
+[?2004l"""
+sysdiag command-line interface.
+"""
+import argparse
+import configparser
+import json
+import os
+import time
+from typing import Any, Dict, Optional, Tuple
+
+from sysdiag.collectors.network import collect_network_metrics
+from sysdiag.collectors.system import collect_system_metrics
+import sysdiag.db as db_client
+from sysdiag.sanitizer import sanitize_dict
+
+DEFAULT_DB_CONFIG = "/etc/sysdiag/database.conf"
+REQUIRED_DB_CONFIG_KEYS = ("host", "port", "database", "user", "password")
+
+
+def check_db_health(*args, **kwargs) -> dict:
+    """Proxy to the database helper used by diagnostics collection."""
+    return db_client.check_db_health(*args, **kwargs)
+
+
+def _read_database_config(path: str) -> Tuple[Optional[configparser.ConfigParser], Optional[str]]:
+    """Read an INI database config, accepting both sectioned and flat files."""
+    parser = configparser.ConfigParser()
+
+    try:
+        with open(path, "r", encoding="utf-8") as config_file:
+            contents = config_file.read()
+    except FileNotFoundError:
+        return None, f"Database config file not found: {path}"
+    except OSError as exc:
+        return None, f"Unable to read database config file {path}: {exc}"
+
+    try:
+        parser.read_string(contents, source=path)
+    except configparser.MissingSectionHeaderError:
+        # Some deployments use a simple key=value file. Treat it as [database].
+        try:
+            parser.read_string("[database]\n" + contents, source=path)
+        except configparser.Error as exc:
+            return None, f"Unable to parse database config: {exc}"
+    except configparser.Error as exc:
+        return None, f"Unable to parse database config: {exc}"
+
+    return parser, None
+
+
+def load_database_config(path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+    """Load database connection settings from a config file.
+
+    The preferred format is::
+
+        [database]
+        host = 127.0.0.1
+        port = 5432
+        database = app
+        user = diag_reader
+        password = secret
+
+    Flat files containing the same key/value pairs without a section header are
+    also accepted for compatibility. Any load/validation problem is returned in
+    the configuration dictionary as an ``error`` value so diagnostics collection
+    can continue and report partial context.
+    """
+    config: Dict[str, Any] = {"config_path": path}
+    parser, error = _read_database_config(path)
+    if error:
+        config["error"] = error
+        return config
+
+    if parser is None or not parser.has_section("database"):
+        config["error"] = "Database config missing [database] section"
+        return config
+
+    for key, value in parser.items("database"):
+        config[key] = value
+
+    if "port" in config:
+        try:
+            config["port"] = int(config["port"])
+        except (TypeError, ValueError):
+            config["error"] = f"Invalid database port: {config['port']}"
+
+    missing = [key for key in REQUIRED_DB_CONFIG_KEYS if not config.get(key)]
+    if missing:
+        config["error"] = "Database config missing required key(s): " + ", ".join(missing)
+
+    return config
+
+
+def collect_database_diagnostics(config_path: str = DEFAULT_DB_CONFIG) -> Dict[str, Any]:
+    """Collect database configuration context and health metrics.
+
+    Connectivity, authentication, and protocol failures are captured in the
+    returned diagnostics instead of aborting the overall system report.
+    """
+    db_config = load_database_config(config_path)
+    diagnostics: Dict[str, Any] = dict(db_config)
+
+    config_error = db_config.get("error")
+    if config_error:
+        diagnostics.update(
+            {
+                "status": "error",
+                "latency_ms": 0.0,
+                "version": "",
+                "active_connections": 0,
+                "message": config_error,
+            }
+        )
+        return diagnostics
+
+    try:
+        health = check_db_health(
+            host=str(db_config["host"]),
+            port=int(db_config["port"]),
+            user=str(db_config["user"]),
+            password=str(db_config["password"]),
+            database=str(db_config["database"]),
+        )
+        diagnostics.update(health)
+        diagnostics["status"] = "connected"
+        diagnostics["latency_ms"] = float(diagnostics.get("latency_ms", 0.0))
+        diagnostics["version"] = str(diagnostics.get("version", ""))
+        diagnostics["active_connections"] = int(diagnostics.get("active_connections", 0))
+    except Exception as exc:
+        diagnostics.update(
+            {
+                "status": "error",
+                "latency_ms": 0.0,
+                "version": "",
+                "active_connections": 0,
+                "message": str(exc),
+            }
+        )
+
+    return diagnostics
+
+
+def build_report(db_config_path: str = DEFAULT_DB_CONFIG) -> dict:
+    """Build the diagnostics dictionary from available collectors."""
+    return {
+        "timestamp": int(time.time()),
+        "system": collect_system_metrics(),
+        "network": collect_network_metrics(),
+        "database": collect_database_diagnostics(db_config_path),
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="System Diagnostics Exporter")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default="/var/diagnostics/report.json",
+        help="Destination path for diagnostics report JSON",
+    )
+    parser.add_argument(
+        "--db-config",
+        default=DEFAULT_DB_CONFIG,
+        help="Path to database configuration file",
+    )
+    args = parser.parse_args()
+
+    report = sanitize_dict(build_report(args.db_config))
+
+    # Ensure output directory exists
+    output_dir = os.path.dirname(os.path.abspath(args.output))
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    with open(args.output, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+
+    print(f"Report written successfully to {args.output}")
+
+
+if __name__ == "__main__":
+    main()
+[?2004hroot@4279480f05a5:/app/repo# command -v sysdiag && sysdiag --help | sed -n '1,120p'
+[?2004l/usr/local/bin/sysdiag
+usage: sysdiag [-h] [--output OUTPUT] [--db-config DB_CONFIG]
+
+System Diagnostics Exporter
+
+options:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Destination path for diagnostics report JSON
+  --db-config DB_CONFIG
+                        Path to database configuration file
+[?2004hroot@4279480f05a5:/app/repo# sysdiag --db-config etc/database.conf --output /tmp/sysdiag-entrypoint.json && python - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/tmp/sysdiag-entrypoint.json', encoding='utf-8') as f:
+[?2004l[?2004h>     report = json.load(f)
+[?2004l[?2004h> print(sorted(report))
+[?2004l[?2004h> print(report['database']['status'], type(report['database']['latency_ms']).__name__, type(report['database']['active_connections']).__name__)
+[?2004l[?2004h> PY
+[?2004lReport written successfully to /tmp/sysdiag-entrypoint.json
+['database', 'network', 'system', 'timestamp']
+connected float int
+[?2004hroot@4279480f05a5:/app/repo# 

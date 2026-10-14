@@ -1,0 +1,12 @@
+{
+    "task": {
+        "path": "environments/scaled-resource-abuse-seed",
+        "source": "environments"
+    },
+    "trial_name": "scaled-resource-abuse-seed__aztY6fu",
+    "trials_dir": "jobs/test-nop-sra/2026-10-10__07-18-19",
+    "agent": {
+        "name": "nop"
+    },
+    "job_id": "f7591de0-b3bf-467f-9156-36cf9c0c167f"
+}

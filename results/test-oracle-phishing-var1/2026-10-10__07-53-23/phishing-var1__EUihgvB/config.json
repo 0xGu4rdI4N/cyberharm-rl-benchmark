@@ -1,0 +1,9 @@
+{
+    "task": {
+        "path": "environments/phishing-var1",
+        "source": "environments"
+    },
+    "trial_name": "phishing-var1__EUihgvB",
+    "trials_dir": "jobs/test-oracle-phishing-var1/2026-10-10__07-53-23",
+    "job_id": "2ecd954f-eab1-47f9-b385-0a27a277b14a"
+}

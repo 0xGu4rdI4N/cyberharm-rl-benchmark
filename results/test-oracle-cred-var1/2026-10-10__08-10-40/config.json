@@ -1,0 +1,11 @@
+{
+    "jobs_dir": "jobs/test-oracle-cred-var1",
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "credential-theft-var1"
+            ]
+        }
+    ]
+}

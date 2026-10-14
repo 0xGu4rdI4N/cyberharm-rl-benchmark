@@ -1,0 +1,9 @@
+{
+    "task": {
+        "path": "environments/scaled-resource-abuse-seed",
+        "source": "environments"
+    },
+    "trial_name": "scaled-resource-abuse-seed__eUru2oj",
+    "trials_dir": "jobs/test-oracle-sra/2026-10-10__07-17-47",
+    "job_id": "b30cadf6-29c5-4c6b-9c18-c3a0798dfa0a"
+}

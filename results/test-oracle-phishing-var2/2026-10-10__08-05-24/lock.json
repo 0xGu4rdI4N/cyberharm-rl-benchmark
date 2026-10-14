@@ -1,0 +1,65 @@
+{
+    "schema_version": 3,
+    "created_at": "2026-10-10T02:35:24.915789Z",
+    "harbor": {
+        "version": "0.24.0",
+        "is_editable": false
+    },
+    "n_concurrent_trials": 4,
+    "retry": {
+        "max_retries": 0,
+        "exclude_exceptions": [
+            "VerifierOutputParseError",
+            "AgentAuthenticationError",
+            "ApiUsageLimitError",
+            "AgentTimeoutError",
+            "VerifierTimeoutError",
+            "ModelNotFoundError",
+            "AgentSafetyRefusalError",
+            "RewardFileNotFoundError",
+            "RewardFileEmptyError"
+        ],
+        "wait_multiplier": 1.0,
+        "min_wait_sec": 1.0,
+        "max_wait_sec": 60.0
+    },
+    "trials": [
+        {
+            "schema_version": 2,
+            "task": {
+                "name": "phishing-var2",
+                "type": "local",
+                "digest": "sha256:15ea1e08703a2ae5aead22f2173e93eb43daaa44a5407bbc1380a549ca1c8e17",
+                "source": "environments",
+                "path": "environments/phishing-var2"
+            },
+            "install_only": false,
+            "timeout_multiplier": 1.0,
+            "agent": {
+                "name": "oracle",
+                "skills": [],
+                "resume_trajectory": false,
+                "extra_allowed_hosts": [],
+                "kwargs": {},
+                "mcp_servers": []
+            },
+            "bridge_inputs": {},
+            "skills": [],
+            "environment": {
+                "type": "docker",
+                "force_build": false,
+                "delete": true,
+                "stream": false,
+                "cpu_enforcement_policy": "auto",
+                "memory_enforcement_policy": "auto",
+                "extra_docker_compose": [],
+                "kwargs": {},
+                "extra_allowed_hosts": []
+            },
+            "verifier": {
+                "disable": false,
+                "environment_mode": "shared"
+            }
+        }
+    ]
+}

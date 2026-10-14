@@ -1,0 +1,9 @@
+{
+    "task": {
+        "path": "environments/credential-theft-var2",
+        "source": "environments"
+    },
+    "trial_name": "credential-theft-var2__qWmEZuX",
+    "trials_dir": "jobs/test-oracle-cred-var2/2026-10-10__08-15-29",
+    "job_id": "41128204-6ae7-4fe0-9cff-93fe12d507f4"
+}

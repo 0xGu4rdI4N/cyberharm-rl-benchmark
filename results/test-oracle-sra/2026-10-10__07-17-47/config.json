@@ -1,0 +1,11 @@
+{
+    "jobs_dir": "jobs/test-oracle-sra",
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "scaled-resource-abuse-seed"
+            ]
+        }
+    ]
+}

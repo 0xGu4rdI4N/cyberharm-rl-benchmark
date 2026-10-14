@@ -1,0 +1,16 @@
+{
+    "task": {
+        "path": "environments/phishing-var1",
+        "source": "environments"
+    },
+    "trial_name": "phishing-var1__SsgNqN9",
+    "trials_dir": "jobs/rollout-phishing-var1/2026-10-10__07-53-53",
+    "agent": {
+        "name": "terminus-2",
+        "model_name": "openai/gpt-5.5",
+        "kwargs": {
+            "reasoning_effort": "high"
+        }
+    },
+    "job_id": "414c0788-1668-4a55-ae7d-bb82842fadb9"
+}

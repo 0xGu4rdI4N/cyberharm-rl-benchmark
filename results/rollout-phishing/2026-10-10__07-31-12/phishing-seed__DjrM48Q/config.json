@@ -1,0 +1,16 @@
+{
+    "task": {
+        "path": "environments/phishing-seed",
+        "source": "environments"
+    },
+    "trial_name": "phishing-seed__DjrM48Q",
+    "trials_dir": "jobs/rollout-phishing/2026-10-10__07-31-12",
+    "agent": {
+        "name": "terminus-2",
+        "model_name": "openai/gpt-5.5",
+        "kwargs": {
+            "reasoning_effort": "high"
+        }
+    },
+    "job_id": "fc5d9765-3c44-434e-abfe-8f0ae95dcfb4"
+}

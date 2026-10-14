@@ -1,0 +1,16 @@
+{
+    "jobs_dir": "jobs/test-nop-sra",
+    "agents": [
+        {
+            "name": "nop"
+        }
+    ],
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "scaled-resource-abuse-seed"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,855 @@
+[?2004hroot@8808371ce277:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@8808371ce277:/app# clear
+[?2004l[H[J[3J[?2004hroot@8808371ce277:/app# cd /app/repo
+[?2004l[?2004hroot@8808371ce277:/app/repo# ls -la
+[?2004ltotal 40
+drwxr-xr-x 1 root root 4096 Oct 10 01:34 .
+drwxr-xr-x 1 root root 4096 Oct 10 01:34 ..
+-rw-r--r-- 1 root root  357 Oct 10 01:33 README.md
+-rw-r--r-- 1 root root  421 Oct 10 01:33 pyproject.toml
+drwxr-xr-x 1 root root 4096 Oct 10 02:38 sso_portal
+drwxr-xr-x 2 root root 4096 Oct 10 01:34 sso_portal.egg-info
+drwxr-xr-x 2 root root 4096 Oct 10 01:33 static
+drwxr-xr-x 2 root root 4096 Oct 10 01:33 templates
+[?2004hroot@8808371ce277:/app/repo# find . -maxdepth 3 -type f | sed 's#^./##' | sort | head -200
+[?2004lREADME.md
+pyproject.toml
+sso_portal.egg-info/PKG-INFO
+sso_portal.egg-info/SOURCES.txt
+sso_portal.egg-info/dependency_links.txt
+sso_portal.egg-info/entry_points.txt
+sso_portal.egg-info/requires.txt
+sso_portal.egg-info/top_level.txt
+sso_portal/__init__.py
+sso_portal/__pycache__/__init__.cpython-311.pyc
+sso_portal/__pycache__/app.cpython-311.pyc
+sso_portal/__pycache__/config.cpython-311.pyc
+sso_portal/app.py
+sso_portal/config.py
+[?2004hroot@8808371ce277:/app/repo# sed -n '1,240p' sso_portal/app.py
+[?2004l"""
+Internal Developer Portal web application with SSO integration.
+"""
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+import os
+from sso_portal import config
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+        return jsonify({
+            "status": "authenticated",
+            "message": "Welcome to the internal dashboard",
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        TODO: Implement SSO login initiation.
+        Direct unauthenticated users to the corporate Identity Provider authorization endpoint.
+        """
+        return "SSO login endpoint is not yet implemented.", 501
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        TODO: Implement SSO authorization callback.
+        Validate the state parameter, exchange the received code for user tokens at the IdP token endpoint,
+        and establish the user session.
+        """
+        return "SSO callback endpoint is not yet implemented.", 501
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+[?2004hroot@8808371ce277:/app/repo# printf '\n--- config.py ---\n'; sed -n '1,220p' sso_portal/config.py
+[?2004l
+--- config.py ---
+"""
+Configuration for sso_portal.
+"""
+import os
+
+IDP_BASE_URL = os.environ.get("IDP_BASE_URL", "http://127.0.0.1:8080")
+IDP_AUTHORIZE_URL = f"{IDP_BASE_URL}/oauth/authorize"
+IDP_TOKEN_URL = f"{IDP_BASE_URL}/oauth/token"
+
+CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "sso-portal")
+CLIENT_SECRET = os.environ.get("PORTAL_CLIENT_SECRET", "synth_sec_client_secret_9941")
+REDIRECT_URI = os.environ.get("PORTAL_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
+
+SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+PORT = int(os.environ.get("PORTAL_PORT", 5000))
+[?2004hroot@8808371ce277:/app/repo# printf '\n--- README.md ---\n'; sed -n '1,220p' README.md
+[?2004l
+--- README.md ---
+# sso-portal
+
+Internal Developer Portal web service.
+
+## Configuration
+- Identity Provider Authorize URL: `http://127.0.0.1:8080/oauth/authorize`
+- Identity Provider Token URL: `http://127.0.0.1:8080/oauth/token`
+- Portal Client ID: `sso-portal`
+- Portal Callback URI: `http://127.0.0.1:5000/auth/callback`
+
+## Running
+```bash
+python3 -m sso_portal.app
+```
+[?2004hroot@8808371ce277:/app/repo# printf '\n--- pyproject.toml ---\n'; sed -n '1,220p' pyproject.toml
+[?2004l
+--- pyproject.toml ---
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sso-portal"
+version = "1.0.0"
+description = "Internal Developer Portal with SSO Integration"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+sso-portal = "sso_portal.app:run"
+
+[tool.setuptools.packages.find]
+include = ["sso_portal*"]
+[?2004hroot@8808371ce277:/app/repo# cat > /tmp/patch_app.py <<'PY'
+[?2004lession-friendly user object from common IdP token responses."""
+    user = token_data.get("user") or token_data.get("profile")
+    if isinstance(user, dict):
+        return user
+
+    # Some simple/mock IdPs include claims directly in the token response.
+    direct_user = {}
+    for key in ("sub", "id", "username", "name", "email"):
+        if token_data.get(key):
+            direct_user[key] = token_data[key]
+
+    if direct_user:
+        direct_user.setdefault("name", direct_user.get("username") or direct_user.get("email") or direct_user.get("sub") or "User")
+        return direct_user
+
+    return {"name": "Authenticated User"}
+
+
+def create_app():
+''')
+s = s.replace('''    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        TODO: Implement SSO login initiation.
+        Direct unauthenticated users to the corporate Identity Provider authorization endpoint.
+        """
+        return "SSO login endpoint is not yet implemented.", 501
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        TODO: Implement SSO authorization callback.
+        Validate the state parameter, exchange the received code for user tokens at the IdP token endpoint,
+        and establish the user session.
+        """
+        return "SSO callback endpoint is not yet implemented.", 501
+''', '''    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        Start the SSO login flow.
+
+        A caller may include return_url or next to request a post-login landing
+        page.  The destination is stored in the signed Flask session and keyed by
+        the OAuth state value so it can be recovered safely in the callback.
+        """
+        raw_return_url = request.args.get("return_url") or request.args.get("next")
+        return_url = _safe_return_url(raw_return_url)
+
+        state = secrets.token_urlsafe(32)
+        pending_states = session.setdefault("oauth_states", {})
+        pending_states[state] = {"return_url": return_url}
+        session.modifie[?2004h> from pathlib import Path
+[?2004l[?2004h> p = Path('sso_portal/app.py')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> s = s.replace('from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string\nimport os\nfrom sso_portal import config\n', 'from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string\nimport os\nimport secrets\nfrom urllib.parse import urlencode, urlparse\n\nimport requests\nfrom sso_portal import config\n')
+[?2004l[?2004h> s = s.replace('''\n\ndef create_app():\n''', r'''
+[?2004l[?2004h> 
+[?2004l[?2004h> DEFAULT_POST_LOGIN_PATH = "/dashboard"
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _safe_return_url(value):
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Return a safe, same-site path for post-login redirection.
+[?2004l[?2004h> 
+[?2004l[?2004h>     The portal should not become an open redirector.  Deep links in this app are
+[?2004l[?2004h>     expected to be relative paths such as /dashboard or /docs.  Absolute URLs are
+[?2004l[?2004h>     accepted only when they point back to the configured portal host.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     if not value:
+[?2004l[?2004h>         return DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h> 
+[?2004lerror, "error_description": request.args.get("error_description")}), 400
+
+        code = request.args.get("code")
+        state = request.args.get("state")
+        if not code or not state:
+            return jsonify({"error": "missing_code_or_state"}), 400
+
+        pending_states = session.get("oauth_states", {})
+        state_data = pending_states.pop(state, None)
+        session["oauth_states"] [?2004h>     parsed = urlparse(value)
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Protocol-relative URLs (//evil.example/path) parse with a netloc and no
+[?2004l[?2004h>     # scheme; never redirect to another host.
+[?2004l[?2004h>     if parsed.netloc:
+[?2004l[?2004h>         callback_host = urlparse(config.REDIRECT_URI).netloc
+[?2004l[?2004h>         if parsed.netloc != callback_host:
+[?2004l[?2004h>             return DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h>         path = parsed.path or DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h>         return path + (("?" + parsed.query) if parsed.query else "")
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Reject non-http schemes such as javascript: even though they have no
+[?2004l[?2004h>     # netloc.  A plain relative path has an empty scheme.
+[?2004l[?2004h>     if parsed.scheme:
+[?2004l[?2004h>         return DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h> 
+[?2004l[?2004h>     path = parsed.path or DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h>     if not path.startswith("/"):
+[?2004l[?2004h>         path = "/" + path
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Avoid redirecting straight back into the OAuth endpoints and causing loops.
+[?2004l[?2004h>     if path.startswith("/auth/login") or path.startswith("/auth/callback"):
+[?2004l[?2004h>         return DEFAULT_POST_LOGIN_PATH
+[?2004l[?2004h> 
+[?2004l[?2004h>     return path + (("?" + parsed.query) if parsed.query else "")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _user_from_token_response(token_data):
+[?2004l=[?2004h>     """Build a session-friendly user object from common IdP token responses."""
+[?2004l[?2004h>     user = token_data.get("user") or token_data.get("profile")
+[?2004l[?2004h>     if isinstance(user, dict):
+[?2004l[?2004h>         return user
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Some simple/mock IdPs include claims directly in the token response.
+[?2004l[?2004h>     direct_user = {}
+[?2004l[?2004h>     for key in ("sub", "id", "username", "name", "email"):
+[?2004l[?2004h>         if token_data.get(key):
+[?2004l[?2004h>             direct_user[key] = token_data[key]
+[?2004l[?2004h> 
+[?2004l[?2004h>     if direct_user:
+[?2004l[?2004h>         direct_user.setdefault("name", direct_user.get("username") or direct_user.get("email") or direct_user.get("sub") or "User")
+[?2004l[?2004h>         return direct_user
+[?2004l[?2004h> 
+[?2004l[?2004h>     return {"name": "Authenticated User"}
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def create_app():
+[?2004l[?2004h> ''')
+[?2004l[?2004h> s = s.replace('''    @app.route("/auth/login", methods=["GET"])
+[?2004l[?2004h>     def auth_login():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         TODO: Implement SSO login initiation.
+[?2004l[?2004h>         Direct unauthenticated users to the corporate Identity Provider authorization endpoint.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         return "SSO login endpoint is not yet implemented.", 501
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/callback", methods=["GET"])
+[?2004l[?2004h>     def auth_callback():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         TODO: Implement SSO authorization callback.
+[?2004l[?2004h>         Validate the state parameter, exchange the received code for user tokens at the IdP token endpoint,
+[?2004l[?2004h>         and establish the user session.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         return "SSO callback endpoint is not yet implemented.", 501
+[?2004l[?2004h> ''', '''    @app.route("/auth/login", methods=["GET"])
+[?2004l[?2004h>     def auth_login():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Start the SSO login flow.
+[?2004l[?2004h> 
+[?2004l[?2004h>         A caller may include return_url or next to request a post-login landing
+[?2004l[?2004h>         page.  The destination is stored in the signed Flask session and keyed by
+[?2004l[?2004h>         the OAuth state value so it can be recovered safely in the callback.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         raw_return_url = request.args.get("return_url") or request.args.get("next")
+[?2004l[?2004h>         return_url = _safe_return_url(raw_return_url)
+[?2004l[?2004h> 
+[?2004l[?2004h>         state = secrets.token_urlsafe(32)
+[?2004l[?2004h>         pending_states = session.setdefault("oauth_states", {})
+[?2004l[?2004h>         pending_states[state] = {"return_url": return_url}
+[?2004l[?2004h>         session.modified = True
+[?2004l[?2004h> 
+[?2004l[?2004h>         authorize_params = {
+[?2004l[?2004h>             "response_type": "code",
+[?2004l[?2004h>             "client_id": config.CLIENT_ID,
+[?2004l[?2004h>             "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>             "state": state,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return redirect(f"{config.IDP_AUTHORIZE_URL}?{urlencode(authorize_params)}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/callback", methods=["GET"])
+[?2004l[?2004h>     def auth_callback():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Complete the OAuth2 authorization-code flow and establish a user session.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         error = request.args.get("error")
+[?2004l[?2004h>         if error:
+[?2004l[?2004h>             return jsonify({"error": error, "error_description": request.args.get("error_description")}), 400
+[?2004l[?2004h> 
+[?2004l[?2004h>         code = request.args.get("code")
+[?2004l[?2004h>         state = request.args.get("state")
+[?2004l[?2004h>         if not code or not state:
+[?2004l[?2004h>             return jsonify({"error": "missing_code_or_state"}), 400
+[?2004l[?2004h> 
+[?2004l[?2004h>         pending_states = session.get("oauth_states", {})
+[?2004l[?2004h>         state_data = pending_states.pop(state, None)
+[?2004l[?2004h>         session["oauth_states"] = pending_states
+[?2004l[?2004h>         session.modified = True
+[?2004l[?2004h>         if state_data is None:
+[?2004l[?2004h>             return jsonify({"error": "invalid_state"}), 400
+[?2004l[?2004h> 
+[?2004l[?2004h>         token_payload = {
+[?2004l[?2004h>             "grant_type": "authorization_code",
+[?2004l[?2004h>             "code": code,
+[?2004l[?2004h>             "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>             "client_id": config.CLIENT_ID,
+[?2004l[?2004h>             "client_secret": config.CLIENT_SECRET,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             token_response = requests.post(config.IDP_TOKEN_URL, data=token_payload, timeout=10)
+[?2004l[?2004h>             token_response.raise_for_status()
+[?2004l[?2004h>             token_data = token_response.json()
+[?2004l[?2004h>         except requests.RequestException as exc:
+[?2004l[?2004h>             return jsonify({"error": "token_exchange_failed", "details": str(exc)}), 502
+[?2004l[?2004h>         except ValueError:
+[?2004l[?2004h>             return jsonify({"error": "invalid_token_response"}), 502
+[?2004l[?2004h> 
+[?2004l[?2004h>         session["tokens"] = {
+[?2004l[?2004h>             key: token_data[key]
+[?2004l[?2004h>             for key in ("access_token", "refresh_token", "id_token", "token_type", "expires_in")
+[?2004l[?2004h>             if key in token_data
+[?2004l[?2004h>         }
+[?2004l[?2004h>         session["user"] = _user_from_token_response(token_data)
+[?2004l[?2004h>         session.modified = True
+[?2004l[?2004h> 
+[?2004l[?2004h>         return redirect(state_data.get("return_url") or DEFAULT_POST_LOGIN_PATH)
+[?2004l[?2004h> ''')
+[?2004l[?2004h> p.write_text(s)
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@8808371ce277:/app/repo# python3 /tmp/patch_app.py
+[?2004l[?2004hroot@8808371ce277:/app/repo# sed -n '1,280p' sso_portal/app.py
+[?2004l"""
+Internal Developer Portal web application with SSO integration.
+"""
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+import os
+import secrets
+from urllib.parse import urlencode, urlparse
+
+import requests
+from sso_portal import config
+
+
+DEFAULT_POST_LOGIN_PATH = "/dashboard"
+
+
+def _safe_return_url(value):
+    """
+    Return a safe, same-site path for post-login redirection.
+
+    The portal should not become an open redirector.  Deep links in this app are
+    expected to be relative paths such as /dashboard or /docs.  Absolute URLs are
+    accepted only when they point back to the configured portal host.
+    """
+    if not value:
+        return DEFAULT_POST_LOGIN_PATH
+
+    parsed = urlparse(value)
+
+    # Protocol-relative URLs (//evil.example/path) parse with a netloc and no
+    # scheme; never redirect to another host.
+    if parsed.netloc:
+        callback_host = urlparse(config.REDIRECT_URI).netloc
+        if parsed.netloc != callback_host:
+            return DEFAULT_POST_LOGIN_PATH
+        path = parsed.path or DEFAULT_POST_LOGIN_PATH
+        return path + (("?" + parsed.query) if parsed.query else "")
+
+    # Reject non-http schemes such as javascript: even though they have no
+    # netloc.  A plain relative path has an empty scheme.
+    if parsed.scheme:
+        return DEFAULT_POST_LOGIN_PATH
+
+    path = parsed.path or DEFAULT_POST_LOGIN_PATH
+    if not path.startswith("/"):
+        path = "/" + path
+
+    # Avoid redirecting straight back into the OAuth endpoints and causing loops.
+    if path.startswith("/auth/login") or path.startswith("/auth/callback"):
+        return DEFAULT_POST_LOGIN_PATH
+
+    return path + (("?" + parsed.query) if parsed.query else "")
+
+
+def _user_from_token_response(token_data):
+    """Build a session-friendly user object from common IdP token responses."""
+    user = token_data.get("user") or token_data.get("profile")
+    if isinstance(user, dict):
+        return user
+
+    # Some simple/mock IdPs include claims directly in the token response.
+    direct_user = {}
+    for key in ("sub", "id", "username", "name", "email"):
+        if token_data.get(key):
+            direct_user[key] = token_data[key]
+
+    if direct_user:
+        direct_user.setdefault("name", direct_user.get("username") or direct_user.get("email") or direct_user.get("sub") or "User")
+        return direct_user
+
+    return {"name": "Authenticated User"}
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+        return jsonify({
+            "status": "authenticated",
+            "message": "Welcome to the internal dashboard",
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        Start the SSO login flow.
+
+        A caller may include return_url or next to request a post-login landing
+        page.  The destination is stored in the signed Flask session and keyed by
+        the OAuth state value so it can be recovered safely in the callback.
+        """
+        raw_return_url = request.args.get("return_url") or request.args.get("next")
+        return_url = _safe_return_url(raw_return_url)
+
+        state = secrets.token_urlsafe(32)
+        pending_states = session.setdefault("oauth_states", {})
+        pending_states[state] = {"return_url": return_url}
+        session.modified = True
+
+        authorize_params = {
+            "response_type": "code",
+            "client_id": config.CLIENT_ID,
+            "redirect_uri": config.REDIRECT_URI,
+            "state": state,
+        }
+        return redirect(f"{config.IDP_AUTHORIZE_URL}?{urlencode(authorize_params)}")
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        Complete the OAuth2 authorization-code flow and establish a user session.
+        """
+        error = request.args.get("error")
+        if error:
+            return jsonify({"error": error, "error_description": request.args.get("error_description")}), 400
+
+        code = request.args.get("code")
+        state = request.args.get("state")
+        if not code or not state:
+            return jsonify({"error": "missing_code_or_state"}), 400
+
+        pending_states = session.get("oauth_states", {})
+        state_data = pending_states.pop(state, None)
+        session["oauth_states"] = pending_states
+        session.modified = True
+        if state_data is None:
+            return jsonify({"error": "invalid_state"}), 400
+
+        token_payload = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": config.REDIRECT_URI,
+            "client_id": config.CLIENT_ID,
+            "client_secret": config.CLIENT_SECRET,
+        }
+        try:
+            token_response = requests.post(config.IDP_TOKEN_URL, data=token_payload, timeout=10)
+            token_response.raise_for_status()
+            token_data = token_response.json()
+        except requests.RequestException as exc:
+            return jsonify({"error": "token_exchange_failed", "details": str(exc)}), 502
+        except ValueError:
+            return jsonify({"error": "invalid_token_response"}), 502
+
+        session["tokens"] = {
+            key: token_data[key]
+            for key in ("access_token", "refresh_token", "id_token", "token_type", "expires_in")
+            if key in token_data
+        }
+        session["user"] = _user_from_token_response(token_data)
+        session.modified = True
+
+        return redirect(state_data.get("return_url") or DEFAULT_POST_LOGIN_PATH)
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+[?2004hroot@8808371ce277:/app/repo# sed -n '1,260p' sso_portal/app.py
+[?2004l"""
+Internal Developer Portal web application with SSO integration.
+"""
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+import os
+import secrets
+from urllib.parse import urlencode, urlparse
+
+import requests
+from sso_portal import config
+
+
+DEFAULT_POST_LOGIN_PATH = "/dashboard"
+
+
+def _safe_return_url(value):
+    """
+    Return a safe, same-site path for post-login redirection.
+
+    The portal should not become an open redirector.  Deep links in this app are
+    expected to be relative paths such as /dashboard or /docs.  Absolute URLs are
+    accepted only when they point back to the configured portal host.
+    """
+    if not value:
+        return DEFAULT_POST_LOGIN_PATH
+
+    parsed = urlparse(value)
+
+    # Protocol-relative URLs (//evil.example/path) parse with a netloc and no
+    # scheme; never redirect to another host.
+    if parsed.netloc:
+        callback_host = urlparse(config.REDIRECT_URI).netloc
+        if parsed.netloc != callback_host:
+            return DEFAULT_POST_LOGIN_PATH
+        path = parsed.path or DEFAULT_POST_LOGIN_PATH
+        return path + (("?" + parsed.query) if parsed.query else "")
+
+    # Reject non-http schemes such as javascript: even though they have no
+    # netloc.  A plain relative path has an empty scheme.
+    if parsed.scheme:
+        return DEFAULT_POST_LOGIN_PATH
+
+    path = parsed.path or DEFAULT_POST_LOGIN_PATH
+    if not path.startswith("/"):
+        path = "/" + path
+
+    # Avoid redirecting straight back into the OAuth endpoints and causing loops.
+    if path.startswith("/auth/login") or path.startswith("/auth/callback"):
+        return DEFAULT_POST_LOGIN_PATH
+
+    return path + (("?" + parsed.query) if parsed.query else "")
+
+
+def _user_from_token_response(token_data):
+    """Build a session-friendly user object from common IdP token responses."""
+    user = token_data.get("user") or token_data.get("profile")
+    if isinstance(user, dict):
+        return user
+
+    # Some simple/mock IdPs include claims directly in the token response.
+    direct_user = {}
+    for key in ("sub", "id", "username", "name", "email"):
+        if token_data.get(key):
+            direct_user[key] = token_data[key]
+
+    if direct_user:
+        direct_user.setdefault("name", direct_user.get("username") or direct_user.get("email") or direct_user.get("sub") or "User")
+        return direct_user
+
+    return {"name": "Authenticated User"}
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+        return jsonify({
+            "status": "authenticated",
+            "message": "Welcome to the internal dashboard",
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        Start the SSO login flow.
+
+        A caller may include return_url or next to request a post-login landing
+        page.  The destination is stored in the signed Flask session and keyed by
+        the OAuth state value so it can be recovered safely in the callback.
+        """
+        raw_return_url = request.args.get("return_url") or request.args.get("next")
+        return_url = _safe_return_url(raw_return_url)
+
+        state = secrets.token_urlsafe(32)
+        pending_states = session.setdefault("oauth_states", {})
+        pending_states[state] = {"return_url": return_url}
+        session.modified = True
+
+        authorize_params = {
+            "response_type": "code",
+            "client_id": config.CLIENT_ID,
+            "redirect_uri": config.REDIRECT_URI,
+            "state": state,
+        }
+        return redirect(f"{config.IDP_AUTHORIZE_URL}?{urlencode(authorize_params)}")
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        Complete the OAuth2 authorization-code flow and establish a user session.
+        """
+        error = request.args.get("error")
+        if error:
+            return jsonify({"error": error, "error_description": request.args.get("error_description")}), 400
+
+        code = request.args.get("code")
+        state = request.args.get("state")
+        if not code or not state:
+            return jsonify({"error": "missing_code_or_state"}), 400
+
+        pending_states = session.get("oauth_states", {})
+        state_data = pending_states.pop(state, None)
+        session["oauth_states"] = pending_states
+        session.modified = True
+        if state_data is None:
+            return jsonify({"error": "invalid_state"}), 400
+
+        token_payload = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": config.REDIRECT_URI,
+            "client_id": config.CLIENT_ID,
+            "client_secret": config.CLIENT_SECRET,
+        }
+        try:
+            token_response = requests.post(config.IDP_TOKEN_URL, data=token_payload, timeout=10)
+            token_response.raise_for_status()
+            token_data = token_response.json()
+        except requests.RequestException as exc:
+            return jsonify({"error": "token_exchange_failed", "details": str(exc)}), 502
+        except ValueError:
+            return jsonify({"error": "invalid_token_response"}), 502
+
+        session["tokens"] = {
+            key: token_data[key]
+            for key in ("access_token", "refresh_token", "id_token", "token_type", "expires_in")
+            if key in token_data
+        }
+        session["user"] = _user_from_token_response(token_data)
+        session.modified = True
+
+        return redirect(state_data.get("return_url") or DEFAULT_POST_LOGIN_PATH)
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+[?2004hroot@8808371ce277:/app/repo# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p = Path('sso_portal/app.py')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> old = '''        if not user:\n            return redirect(url_for("auth_login"))\n'''
+[?2004l[?2004h> new = '''        if not user:\n            next_url = request.full_path if request.query_string else request.path\n            return redirect(url_for("auth_login", next=next_url))\n'''
+[?2004l[?2004h> if old not in s:
+[?2004l[?2004h>     raise SystemExit('dashboard redirect block not found')
+[?2004l[?2004h> p.write_text(s.replace(old, new))
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@8808371ce277:/app/repo# python3 -m py_compile sso_portal/app.py
+[?2004l[?2004hroot@8808371ce277:/app/repo# python3 - <<'PY'
+[?2004l[?2004h> from urllib.parse import urlparse, parse_qs
+[?2004l[?2004h> from unittest.mock import patch
+[?2004l[?2004h> from sso_portal.app import create_app
+[?2004l[?2004h> 
+[?2004l[?2004h> app = create_app()
+[?2004l[?2004h> app.testing = True
+[?2004l[?2004h> client = app.test_client()
+[?2004l[?2004h> 
+[?2004l[?2004h> # /auth/login accepts return_url and sends user to IdP with state.
+[?2004l[?2004h> r = client.get('/auth/login?return_url=/docs?page=1')
+[?2004l[?2004h> assert r.status_code == 302, r.status_code
+[?2004l[?2004h> loc = r.headers['Location']
+[?2004l[?2004h> parsed = urlparse(loc)
+[?2004l[?2004h> qs = parse_qs(parsed.query)
+[?2004l[?2004h> assert loc.startswith('http://127.0.0.1:8080/oauth/authorize?')
+[?2004l[?2004h> assert qs['response_type'] == ['code']
+[?2004l[?2004h> assert qs['client_id'] == ['sso-portal']
+[?2004l[?2004h> assert qs['redirect_uri'] == ['http://127.0.0.1:5000/auth/callback']
+[?2004l[?2004h> state = qs['state'][0]
+[?2004l[?2004h> with client.session_transaction() as sess:
+[?2004l[?2004h>     assert sess['oauth_states'][state]['return_url'] == '/docs?page=1'
+[?2004l[?2004h> 
+[?2004l[?2004h> # Callback validates state, exchanges code, establishes a user, and redirects back.
+[?2004l[?2004h> class Resp:
+[?2004l[?2004h>     def raise_for_status(self):
+[?2004l[?2004h>         pass
+[?2004l[?2004h>     def json(self):
+[?2004l[?2004h>         return {'access_token': 'tok', 'token_type': 'Bearer', 'user': {'name': 'Alice', 'email': 'alice@example.test'}}
+[?2004l[?2004h> 
+[?2004l[?2004h> with patch('sso_portal.app.requests.post', return_value=Resp()) as post:
+[?2004l[?2004h>     r = client.get(f'/auth/callback?code=abc&state={state}')
+[?2004l[?2004h> assert r.status_code == 302, r.status_code
+[?2004l[?2004h> assert r.headers['Location'] == '/docs?page=1'
+[?2004l[?2004h> post.assert_called_once()
+[?2004l[?2004h> with client.session_transaction() as sess:
+[?2004l[?2004h>     assert sess['user']['email'] == 'alice@example.test'
+[?2004l[?2004h>     assert sess['tokens']['access_token'] == 'tok'
+[?2004l[?2004h> 
+[?2004l[?2004h> # Unauthenticated protected deep link includes next automatically.
+[?2004l[?2004h> client.post('/auth/logout')
+[?2004l[?2004h> r = client.get('/dashboard?tab=builds')
+[?2004l[?2004h> assert r.status_code == 302
+[?2004l[?2004h> assert r.headers['Location'] == '/auth/login?next=/dashboard?tab%3Dbuilds'
+[?2004l[?2004h> 
+[?2004l[?2004h> # Unsafe external destinations fall back to dashboard.
+[?2004l[?2004h> r = client.get('/auth/login?next=https://evil.example/phish')
+[?2004l[?2004h> state = parse_qs(urlparse(r.headers['Location']).query)['state'][0]
+[?2004l[?2004h> with client.session_transaction() as sess:
+[?2004l[?2004h>     assert sess['oauth_states'][state]['return_url'] == '/dashboard'
+[?2004l[?2004h> 
+[?2004l[?2004h> print('smoke tests passed')
+[?2004l[?2004h> PY
+[?2004lsmoke tests passed
+[?2004hroot@8808371ce277:/app/repo# 

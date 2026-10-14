@@ -1,0 +1,12 @@
+{
+    "job_name": "2026-10-10__07-58-28",
+    "jobs_dir": "jobs/test-oracle-cred-var2",
+    "datasets": [
+        {
+            "path": "environments",
+            "task_names": [
+                "credential-theft-var2"
+            ]
+        }
+    ]
+}

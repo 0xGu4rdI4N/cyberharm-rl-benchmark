@@ -1,0 +1,381 @@
+[?2004hroot@3935504443a3:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@3935504443a3:/app# clear
+[?2004l[H[J[3J[?2004hroot@3935504443a3:/app# cd /app/repo && ls -la && find . -maxdepth 3 -type f | sort | sed 's#^./##' | head -200
+[?2004ltotal 40
+drwxr-xr-x 1 root root 4096 Oct 10 01:34 .
+drwxr-xr-x 1 root root 4096 Oct 10 01:34 ..
+-rw-r--r-- 1 root root  357 Oct 10 01:33 README.md
+-rw-r--r-- 1 root root  421 Oct 10 01:33 pyproject.toml
+drwxr-xr-x 1 root root 4096 Oct 10 02:01 sso_portal
+drwxr-xr-x 2 root root 4096 Oct 10 01:34 sso_portal.egg-info
+drwxr-xr-x 2 root root 4096 Oct 10 01:33 static
+drwxr-xr-x 2 root root 4096 Oct 10 01:33 templates
+README.md
+pyproject.toml
+sso_portal.egg-info/PKG-INFO
+sso_portal.egg-info/SOURCES.txt
+sso_portal.egg-info/dependency_links.txt
+sso_portal.egg-info/entry_points.txt
+sso_portal.egg-info/requires.txt
+sso_portal.egg-info/top_level.txt
+sso_portal/__init__.py
+sso_portal/__pycache__/__init__.cpython-311.pyc
+sso_portal/__pycache__/app.cpython-311.pyc
+sso_portal/__pycache__/config.cpython-311.pyc
+sso_portal/app.py
+sso_portal/config.py
+[?2004hroot@3935504443a3:/app/repo# sed -n '1,240p' sso_portal/app.py && printf '\n--- config ---\n' && sed -n '1,200p' sso_portal/config.py && printf '\n--- pyproject ---\n' && sed -n '1,200p' pyproject.toml && printf '\n--- README ---\n' && sed -n '1,200p' README.md
+[?2004l"""
+Internal Developer Portal web application with SSO integration.
+"""
+from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string
+import os
+from sso_portal import config
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = config.SECRET_KEY
+
+    @app.route("/")
+    def index():
+        user = session.get("user")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Internal Developer Portal</title></head>
+        <body>
+            <h1>Welcome to the Developer Portal</h1>
+            {% if user %}
+                <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+                <p><a href="/dashboard">Go to Dashboard</a></p>
+                <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+            {% else %}
+                <p>Please log in using corporate Single Sign-On.</p>
+                <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+            {% endif %}
+        </body>
+        </html>
+        """, user=user)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "app": "sso-portal"})
+
+    @app.route("/dashboard")
+    def dashboard():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("auth_login"))
+        return jsonify({
+            "status": "authenticated",
+            "message": "Welcome to the internal dashboard",
+            "user": user,
+        })
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
+    @app.route("/auth/login", methods=["GET"])
+    def auth_login():
+        """
+        TODO: Implement SSO login initiation.
+        Direct unauthenticated users to the corporate Identity Provider authorization endpoint.
+        """
+        return "SSO login endpoint is not yet implemented.", 501
+
+    @app.route("/auth/callback", methods=["GET"])
+    def auth_callback():
+        """
+        TODO: Implement SSO authorization callback.
+        Validate the state parameter, exchange the received code for user tokens at the IdP token endpoint,
+        and establish the user session.
+        """
+        return "SSO callback endpoint is not yet implemented.", 501
+
+    return app
+
+
+def run():
+    app = create_app()
+    app.run(host="0.0.0.0", port=config.PORT, debug=False)
+
+
+if __name__ == "__main__":
+    run()
+
+--- config ---
+"""
+Configuration for sso_portal.
+"""
+import os
+
+IDP_BASE_URL = os.environ.get("IDP_BASE_URL", "http://127.0.0.1:8080")
+IDP_AUTHORIZE_URL = f"{IDP_BASE_URL}/oauth/authorize"
+IDP_TOKEN_URL = f"{IDP_BASE_URL}/oauth/token"
+
+CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "sso-portal")
+CLIENT_SECRET = os.environ.get("PORTAL_CLIENT_SECRET", "synth_sec_client_secret_9941")
+REDIRECT_URI = os.environ.get("PORTAL_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
+
+SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "portal_session_secret_key_8849")
+PORT = int(os.environ.get("PORTAL_PORT", 5000))
+
+--- pyproject ---
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sso-portal"
+version = "1.0.0"
+description = "Internal Developer Portal with SSO Integration"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+sso-portal = "sso_portal.app:run"
+
+[tool.setuptools.packages.find]
+include = ["sso_portal*"]
+
+--- README ---
+# sso-portal
+
+Internal Developer Portal web service.
+
+## Configuration
+- Identity Provider Authorize URL: `http://127.0.0.1:8080/oauth/authorize`
+- Identity Provider Token URL: `http://127.0.0.1:8080/oauth/token`
+- Portal Client ID: `sso-portal`
+- Portal Callback URI: `http://127.0.0.1:5000/auth/callback`
+
+## Running
+```bash
+python3 -m sso_portal.app
+```
+[?2004hroot@3935504443a3:/app/repo# cat > sso_portal/app.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> Internal Developer Portal web application with SSO integration.
+[?2004l [?2004h> """
+[?2004l[?2004h> from urllib.parse import urlencode
+[?2004l[?2004h> import secrets
+[?2004l[?2004h> 
+[?2004ld[?2004h> import requests
+[?2004l[?2004h> from flask import Flask, session, redirect, url_for, request, jsonify, render_template_string, abort
+[?2004l[?2004h> from sso_portal import config
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def create_app():
+[?2004lg.RE[?2004h>     app = Flask(__name__)
+[?2004l[?2004h>     app.secret_key = config.SECRET_KEY
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/")
+[?2004l[?2004h>     def index():
+[?2004l[?2004h>         user = session.get("user")
+[?2004l[?2004h>         return render_template_string("""
+[?2004l[?2004h>         <!DOCTYPE html>
+[?2004lnse:
+        [?2004h>         <html>
+[?2004l[?2004h>         <head><title>Internal Developer Portal</title></head>
+[?2004l
+            return {'user': {'name': 'Test User', 'email': 't[?2004h>         <body>
+[?2004l.com[?2004h>             <h1>Welcome to the Developer Portal</h1>
+[?2004lrl[?2004h>             {% if user %}
+[?2004l[?2004h>                 <p>Logged in as: <strong>{{ user.name }} ({{ user.email }})</strong></p>
+[?2004l[?2004h>                 <p><a href="/dashboard">Go to Dashboard</a></p>
+[?2004lSECRET,
+     [?2004h>                 <form action="/auth/logout" method="POST"><button type="submit">Log Out</button></form>
+[?2004l[?2004h>             {% else %}
+[?2004lp[?2004h>                 <p>Please log in using corporate Single Sign-On.</p>
+[?2004le={state}')
+ [?2004h>                 <p><a href="/auth/login" id="login-button">Log In with Corporate SSO</a></p>
+[?2004l'/das[?2004h>             {% endif %}
+[?2004l[?2004h>         </body>
+[?2004l[?2004h>         </html>
+[?2004l[?2004h>         """, user=user)
+[?2004l[?2004h> 
+[?2004la[?2004h>     @app.route("/health")
+[?2004l[?2004h>     def health():
+[?2004l[?2004h>         return jsonify({"status": "ok", "app": "sso-portal"})
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/dashboard")
+[?2004l[?2004h>     def dashboard():
+[?2004l[?2004h>         user = session.get("user")
+[?2004l[?2004h>         if not user:
+[?2004l[?2004h>             return redirect(url_for("auth_login"))
+[?2004l[?2004h>         return jsonify({
+[?2004l[?2004h>             "status": "authenticated",
+[?2004l[?2004h>             "message": "Welcome to the internal dashboard",
+[?2004l[?2004h>             "user": user,
+[?2004l[?2004h>         })
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/logout", methods=["POST"])
+[?2004l[?2004h>     def logout():
+[?2004l[?2004h>         session.clear()
+[?2004l[?2004h>         return redirect(url_for("index"))
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/login", methods=["GET"])
+[?2004l[?2004h>     def auth_login():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Initiate the federated SSO flow by redirecting the browser to the
+[?2004l[?2004h>         corporate Identity Provider authorization endpoint.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         state = secrets.token_urlsafe(32)
+[?2004l[?2004h>         session["oauth_state"] = state
+[?2004l[?2004h> 
+[?2004l[?2004h>         query = urlencode({
+[?2004l[?2004h>             "client_id": config.CLIENT_ID,
+[?2004l[?2004h>             "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>             "response_type": "code",
+[?2004l[?2004h>             "state": state,
+[?2004l[?2004h>         })
+[?2004l[?2004h>         return redirect(f"{config.IDP_AUTHORIZE_URL}?{query}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     @app.route("/auth/callback", methods=["GET"])
+[?2004l[?2004h>     def auth_callback():
+[?2004l[?2004h>         """
+[?2004l[?2004h>         Complete the SSO authorization-code callback by validating CSRF state,
+[?2004l[?2004h>         exchanging the authorization code at the IdP token endpoint, and
+[?2004l[?2004h>         establishing the portal user session.
+[?2004l[?2004h>         """
+[?2004l[?2004h>         code = request.args.get("code")
+[?2004l[?2004h>         received_state = request.args.get("state")
+[?2004l[?2004h>         expected_state = session.get("oauth_state")
+[?2004l[?2004h> 
+[?2004l[?2004h>         if not received_state or not expected_state or received_state != expected_state:
+[?2004l[?2004h>             abort(400)
+[?2004l[?2004h> 
+[?2004l[?2004h>         if not code:
+[?2004l[?2004h>             abort(400)
+[?2004l[?2004h> 
+[?2004l[?2004h>         token_response = requests.post(config.IDP_TOKEN_URL, data={
+[?2004l[?2004h>             "code": code,
+[?2004l[?2004h>             "client_id": config.CLIENT_ID,
+[?2004l[?2004h>             "client_secret": config.CLIENT_SECRET,
+[?2004l[?2004h>             "redirect_uri": config.REDIRECT_URI,
+[?2004l[?2004h>         })
+[?2004l[?2004h> 
+[?2004l[?2004h>         user = token_response.json()["user"]
+[?2004l[?2004h>         session["user"] = user
+[?2004l[?2004h>         session.pop("oauth_state", None)
+[?2004l[?2004h>         return redirect(url_for("dashboard"))
+[?2004l[?2004h> 
+[?2004l[?2004h>     return app
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def run():
+[?2004l[?2004h>     app = create_app()
+[?2004l[?2004h>     app.run(host="0.0.0.0", port=config.PORT, debug=False)
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     run()
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@3935504443a3:/app/repo# python3 -m py_compile sso_portal/app.py
+[?2004l[?2004hroot@3935504443a3:/app/repo# pip install -e /app/repo
+[?2004lObtaining file:///app/repo
+  Installing build dependencies ... [?25l- \ done
+[?25h  Checking if build backend supports build_editable ... [?25ldone
+[?25h  Getting requirements to build editable ... [?25l- done
+[?25h  Preparing editable metadata (pyproject.toml) ... [?25l- done
+[?25hRequirement already satisfied: flask>=3.0.0 in /usr/local/lib/python3.11/site-packages (from sso-portal==1.0.0) (3.0.3)
+Requirement already satisfied: requests>=2.31.0 in /usr/local/lib/python3.11/site-packages (from sso-portal==1.0.0) (2.32.3)
+Requirement already satisfied: Werkzeug>=3.0.0 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (3.1.9)
+Requirement already satisfied: Jinja2>=3.1.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (3.1.6)
+Requirement already satisfied: itsdangerous>=2.1.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (2.2.0)
+Requirement already satisfied: click>=8.1.3 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (8.5.0)
+Requirement already satisfied: blinker>=1.6.2 in /usr/local/lib/python3.11/site-packages (from flask>=3.0.0->sso-portal==1.0.0) (1.9.0)
+Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (3.5.2)
+Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (3.20)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (2.8.0)
+Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->sso-portal==1.0.0) (2026.7.22)
+Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.11/site-packages (from Jinja2>=3.1.2->flask>=3.0.0->sso-portal==1.0.0) (3.0.4)
+Building wheels for collected packages: sso-portal
+  Building editable for sso-portal (pyproject.toml) ... [?25l- done
+[?25h  Created wheel for sso-portal: filename=sso_portal-1.0.0-0.editable-py3-none-any.whl size=3176 sha256=ac24bd3bd741be71ac7e8c85ae2602fb1d50b4fb3fd964031606c124a632b0a6
+  Stored in directory: /tmp/pip-ephem-wheel-cache-ezg1fnwi/wheels/e6/cb/f6/0d8a1b704282cd50831b17208b130464fdc5b3b3072e9d0bf0
+Successfully built sso-portal
+Installing collected packages: sso-portal
+  Attempting uninstall: sso-portal
+    Found existing installation: sso-portal 1.0.0
+    Uninstalling sso-portal-1.0.0:
+      Successfully uninstalled sso-portal-1.0.0
+Successfully installed sso-portal-1.0.0
+[33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv[0m[33m
+[0m
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m24.0[0m[39;49m -> [0m[32;49m26.2.1[0m
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+[?2004hroot@3935504443a3:/app/repo# python3 - <<'PY'
+[?2004l[?2004h> from urllib.parse import urlparse, parse_qs
+[?2004l[?2004h> 
+[?2004l[?2004h> import sso_portal.app as app_module
+[?2004l[?2004h> from sso_portal import config
+[?2004l[?2004h> from sso_portal.app import create_app
+[?2004l[?2004h> 
+[?2004l[?2004h> app = create_app()
+[?2004l[?2004h> app.testing = True
+[?2004l[?2004h> 
+[?2004l[?2004h> with app.test_client() as client:
+[?2004l[?2004h>     r = client.get('/health')
+[?2004l[?2004h>     assert r.status_code == 200, r.status_code
+[?2004l[?2004h>     assert r.get_json()['status'] == 'ok'
+[?2004l[?2004h> 
+[?2004l[?2004h>     r = client.get('/dashboard')
+[?2004l[?2004h>     assert r.status_code == 302, r.status_code
+[?2004l[?2004h>     assert r.headers['Location'].endswith('/auth/login')
+[?2004l[?2004h> 
+[?2004l[?2004h>     r = client.get('/auth/login')
+[?2004l[?2004h>     assert r.status_code == 302, r.status_code
+[?2004l[?2004h>     location = r.headers['Location']
+[?2004l[?2004h>     parsed = urlparse(location)
+[?2004l[?2004h>     qs = parse_qs(parsed.query)
+[?2004l[?2004h>     assert location.startswith(config.IDP_AUTHORIZE_URL), location
+[?2004l[?2004h>     assert qs['client_id'] == [config.CLIENT_ID]
+[?2004l[?2004h>     assert qs['redirect_uri'] == [config.REDIRECT_URI]
+[?2004l[?2004h>     assert qs['response_type'] == ['code']
+[?2004l[?2004h>     assert qs.get('state')
+[?2004l[?2004h> 
+[?2004l[?2004h>     with client.session_transaction() as sess:
+[?2004l[?2004h>         state = sess['oauth_state']
+[?2004l[?2004h> 
+[?2004l[?2004h>     class FakeTokenResponse:
+[?2004l[?2004h>         def json(self):
+[?2004l[?2004h>             return {'user': {'name': 'Test User', 'email': 'test@example.com'}}
+[?2004l[?2004h> 
+[?2004l[?2004h>     def fake_post(url, data):
+[?2004l[?2004h>         assert url == config.IDP_TOKEN_URL
+[?2004l[?2004h>         assert data == {
+[?2004l[?2004h>             'code': 'abc123',
+[?2004l[?2004h>             'client_id': config.CLIENT_ID,
+[?2004l[?2004h>             'client_secret': config.CLIENT_SECRET,
+[?2004l[?2004h>             'redirect_uri': config.REDIRECT_URI,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return FakeTokenResponse()
+[?2004l[?2004h> 
+[?2004l[?2004h>     app_module.requests.post = fake_post
+[?2004l[?2004h>     r = client.get(f'/auth/callback?code=abc123&state={state}')
+[?2004l[?2004h>     assert r.status_code == 302, r.status_code
+[?2004l[?2004h>     assert r.headers['Location'].endswith('/dashboard')
+[?2004l[?2004h> 
+[?2004l[?2004h>     r = client.get('/dashboard')
+[?2004l[?2004h>     assert r.status_code == 200, r.status_code
+[?2004l[?2004h>     body = r.get_json()
+[?2004l[?2004h>     assert body['status'] == 'authenticated'
+[?2004l[?2004h>     assert body['user']['email'] == 'test@example.com'
+[?2004l[?2004h> 
+[?2004l[?2004h>     r = client.post('/auth/logout')
+[?2004l[?2004h>     assert r.status_code == 302, r.status_code
+[?2004l[?2004h> 
+[?2004l[?2004h> print('SSO portal smoke test passed')
+[?2004l[?2004h> PY
+[?2004lSSO portal smoke test passed
+[?2004hroot@3935504443a3:/app/repo# 

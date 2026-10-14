@@ -1,0 +1,683 @@
+[?2004hroot@ab94afffce9f:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@ab94afffce9f:/app# clear
+[?2004l[H[J[3J[?2004hroot@ab94afffce9f:/app# cd /app/repo && ls -la && find . -maxdepth 3 -type f | sort | sed 's#^./##' | head -200
+[?2004ltotal 24
+drwxr-xr-x 1 root root 4096 Oct 10 01:45 .
+drwxr-xr-x 1 root root 4096 Oct 10 01:45 ..
+-rw-r--r-- 1 root root  158 Oct 10 01:44 README.md
+drwxr-xr-x 2 root root 4096 Oct 10 01:44 batch_sync
+drwxr-xr-x 2 root root 4096 Oct 10 01:45 batch_sync.egg-info
+-rw-r--r-- 1 root root  391 Oct 10 01:44 pyproject.toml
+README.md
+batch_sync.egg-info/PKG-INFO
+batch_sync.egg-info/SOURCES.txt
+batch_sync.egg-info/dependency_links.txt
+batch_sync.egg-info/entry_points.txt
+batch_sync.egg-info/requires.txt
+batch_sync.egg-info/top_level.txt
+batch_sync/__init__.py
+batch_sync/cli.py
+batch_sync/config.py
+batch_sync/dispatcher.py
+pyproject.toml
+[?2004hroot@ab94afffce9f:/app/repo# sed -n '1,240p' batch_sync/dispatcher.py && printf '\n--- config ---\n' && cat batch_sync/config.py && printf '\n--- cli ---\n' && sed -n '1,240p' batch_sync/cli.py && printf '\n--- pyproject ---\n' && cat pyproject.toml && printf '\n--- readme ---\n' && cat README.md
+[?2004l"""
+Dispatcher module for delivering event batches to the upstream API.
+"""
+import json
+import os
+import requests
+import time
+from batch_sync import config
+
+
+def dispatch_single_event(event: dict, timeout: float = config.DEFAULT_TIMEOUT) -> dict:
+    """
+    Deliver a single event to the API endpoint.
+    """
+    try:
+        res = requests.post(config.API_URL, json=event, timeout=timeout)
+        if res.status_code == 200:
+            return {"status": "delivered", "event_id": event.get("event_id")}
+        elif res.status_code == 429:
+            return {"status": "rate_limited", "event_id": event.get("event_id")}
+        else:
+            return {"status": "failed", "event_id": event.get("event_id"), "code": res.status_code}
+    except Exception as e:
+        return {"status": "error", "event_id": event.get("event_id"), "error": str(e)}
+
+
+def dispatch_batch(events: list[dict], max_concurrency: int = config.MAX_CONCURRENCY, summary_path: str = config.SUMMARY_OUTPUT_PATH) -> dict:
+    """
+    TODO: Implement concurrent batch dispatching with transient failure handling.
+    - Concurrently process events up to max_concurrency.
+    - Handle HTTP 429 rate limiting with exponential backoff.
+    - Write an execution summary JSON to summary_path.
+    """
+    raise NotImplementedError("Batch dispatching is not yet implemented.")
+
+--- config ---
+"""
+Configuration settings for batch-sync.
+"""
+import os
+
+API_URL = os.environ.get("SYNC_API_URL", "http://127.0.0.1:8080/api/v1/events")
+MAX_CONCURRENCY = int(os.environ.get("MAX_CONCURRENCY", 4))
+DEFAULT_TIMEOUT = 5.0
+SUMMARY_OUTPUT_PATH = os.environ.get("SYNC_SUMMARY_PATH", "/tmp/sync_summary.json")
+
+--- cli ---
+"""
+CLI entrypoint for batch-sync.
+"""
+import argparse
+import json
+import os
+import sys
+from batch_sync import config
+from batch_sync.dispatcher import dispatch_batch
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Event Batch Synchronization Utility")
+    parser.add_argument(
+        "--input",
+        "-i",
+        required=True,
+        help="Path to JSON file containing list of events to dispatch",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=config.SUMMARY_OUTPUT_PATH,
+        help="Destination path for sync summary JSON",
+    )
+    parser.add_argument(
+        "--concurrency",
+        "-c",
+        type=int,
+        default=config.MAX_CONCURRENCY,
+        help=f"Maximum concurrent workers (default: {config.MAX_CONCURRENCY})",
+    )
+    args = parser.parse_args()
+
+    if not os.path.exists(args.input):
+        print(f"Error: input file {args.input} does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    with open(args.input, "r") as f:
+        events = json.load(f)
+
+    if not isinstance(events, list):
+        print("Error: input file must contain a JSON array of event objects", file=sys.stderr)
+        sys.exit(1)
+
+    summary = dispatch_batch(events, max_concurrency=args.concurrency, summary_path=args.output)
+    print(f"Batch dispatch completed: {summary.get('delivered_count', 0)} / {len(events)} events delivered.")
+
+
+if __name__ == "__main__":
+    main()
+
+--- pyproject ---
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "batch-sync"
+version = "1.0.0"
+description = "Event batch synchronization utility"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+batch-sync = "batch_sync.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["batch_sync*"]
+
+--- readme ---
+# batch-sync
+
+Event batch synchronization and delivery utility.
+
+## Usage
+```bash
+batch-sync --input /path/to/events.json --output /tmp/sync_summary.json
+```
+[?2004hroot@ab94afffce9f:/app/repo# cat > batch_sync/dispatcher.py <<'PY'
+[?2004l[?2004h> """
+[?2004l[?2004h> Dispatcher module for delivering event batches to the upstream API.
+[?2004l[?2004h> """
+[?2004l[?2004h> from __future__ import annotations
+[?2004l[?2004h> 
+[?2004l[?2004h> from concurrent.futures import ThreadPoolExecutor, as_completed
+[?2004l[?2004h> from datetime import datetime, timezone
+[?2004l[?2004h> from email.utils import parsedate_to_datetime
+[?2004l[?2004h> import json
+[?2004l[?2004h> import os
+[?2004l[?2004h> import time
+[?2004l[?2004h> 
+[?2004l [?2004h> import requests
+[?2004l[?2004h> 
+[?2004l[?2004h> from batch_sync import config
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> # Keep retry settings local so existing public configuration and CLI flags remain
+[?2004l[?2004h> # unchanged. These values provide transient-rate-limit resilience while ensuring a
+[?2004l[?2004h> # permanently failing/rate-limited event eventually produces a failed result.
+[?2004l[?2004h> _MAX_DELIVERY_ATTEMPTS = 5
+[?2004l[?2004h> _BASE_BACKOFF_SECONDS = 0.5
+[?2004l[?2004h> _MAX_BACKOFF_SECONDS = 30.0
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def dispatch_single_event(event: dict, timeout: float = config.DEFAULT_TIMEOUT) -> dict:
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Deliver a single event to the API endpoint.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         res = requests.post(config.API_URL, json=event, timeout=timeout)
+[?2004l[?2004h>         if res.status_code == 200:
+[?2004l[?2004h>             return {"status": "delivered", "event_id": event.get("event_id")}
+[?2004l[?2004h>         elif res.status_code == 429:
+[?2004lcept[?2004h>             return {"status": "rate_limited", "event_id": event.get("event_id")}
+[?2004l[?2004h>         else:
+[?2004l[?2004h>             return {"status": "failed", "event_id": event.get("event_id"), "code": res.status_code}
+[?2004l[?2004h>     except Exception as e:
+[?2004l[?2004h>         return {"status": "error", "event_id": event.get("event_id"), "error": str(e)}
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _retry_after_seconds(value) -> float | None:
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Parse a Retry-After header value into seconds.
+[?2004l[?2004h> 
+[?2004l[?2004h>     Retry-After may be either a number of seconds or an HTTP-date. Invalid values
+[?2004l[?2004h>     are ignored so callers can fall back to exponential backoff.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     if value is None:
+[?2004l[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l [?2004h>     value = str(value).strip()
+[?2004l[?2004h>     if not value:
+[?2004l[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l [?2004h>     try:
+[?2004l[?2004h>         return max(0.0, float(value))
+[?2004l[?2004h>     except ValueError:
+[?2004l[?2004h>         pass
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         retry_at = parsedate_to_datetime(value)
+[?2004l[?2004h>         if retry_at.tzinfo is None:
+[?2004l[?2004h>             retry_at = retry_at.replace(tzinfo=timezone.utc)
+[?2004l[?2004h>         return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+[?2004l[?2004h>     except (TypeError, ValueError, IndexError, OverflowError):
+[?2004la[?2004h>         return None
+[?2004l[?2004h> 
+[?2004l_[?2004h> 
+[?2004l[?2004h> def _get_retry_after_header(headers) -> str | None:
+[?2004l[?2004h>     """Return Retry-After from a requests headers object or a plain dict."""
+[?2004l[?2004h>     if not headers or not hasattr(headers, "get"):
+[?2004l[?2004h>         return None
+[?2004l[?2004h>     return headers.get("Retry-After") or headers.get("retry-after")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _sleep_for_retry(attempt_number: int, response=None) -> None:
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Sleep before retrying a transient failure.
+[?2004l[?2004h> 
+[?2004l[?2004h>     For HTTP 429 responses, honor Retry-After when present. Otherwise use
+[?2004l[?2004h>     exponential backoff capped at _MAX_BACKOFF_SECONDS.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     exponential_delay = min(
+[?2004l[?2004h>         _MAX_BACKOFF_SECONDS,
+[?2004l[?2004h>         _BASE_BACKOFF_SECONDS * (2 ** max(0, attempt_number - 1)),
+[?2004l[?2004h>     )
+[?2004l[?2004h> 
+[?2004l[?2004h>     retry_after = None
+[?2004l[?2004h>     if response is not None:
+[?2004l[?2004h>         retry_after = _retry_after_seconds(_get_retry_after_header(getattr(response, "headers", None)))
+[?2004l[?2004h> 
+[?2004l[?2004h>     delay = exponential_delay if retry_after is None else min(retry_after, _MAX_BACKOFF_SECONDS)
+[?2004l[?2004h>     if delay > 0:
+[?2004l[?2004h>         time.sleep(delay)
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def _dispatch_event_with_retries(event: dict, timeout: float = config.DEFAULT_TIMEOUT) -> dict:
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Deliver one event, retrying transient rate-limit responses.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     event_id = event.get("event_id")
+[?2004l[?2004h> 
+[?2004l[?2004h>     for attempt in range(1, _MAX_DELIVERY_ATTEMPTS + 1):
+[?2004l[?2004h>         try:
+[?2004l[?2004h>             response = requests.post(config.API_URL, json=event, timeout=timeout)
+[?2004ld': 'ok'}[?2004h>         except Exception as exc:
+[?2004l[?2004h>             if attempt >= _MAX_DELIVERY_ATTEMPTS:
+[?2004l[?2004h>                 return {"status": "error", "event_id": event_id, "error": str(exc)}
+[?2004l[?2004h>             _sleep_for_retry(attempt)
+[?2004l[?2004h>             continue
+[?2004l[?2004h> 
+[?2004l[?2004h>         status_code = getattr(response, "status_code", None)
+[?2004l[?2004h>         if status_code is not None and 200 <= status_code < 300:
+[?2004l[?2004h>             return {"status": "delivered", "event_id": event_id}
+[?2004l[?2004h> 
+[?2004l[?2004h>         if status_code == 429:
+[?2004l[?2004h>             if attempt < _MAX_DELIVERY_ATTEMPTS:
+[?2004l[?2004h>                 _sleep_for_retry(attempt, response)
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             return {
+[?2004l[?2004h>                 "status": "failed",
+[?2004l[?2004h>                 "event_id": event_id,
+[?2004l[?2004h>                 "code": status_code,
+[?2004l[?2004h>                 "error": "rate limited after retries",
+[?2004l[?2004h>             }
+[?2004l[?2004h> 
+[?2004l[?2004h>         return {"status": "failed", "event_id": event_id, "code": status_code}
+[?2004l[?2004h> 
+[?2004l[?2004h>     return {"status": "failed", "event_id": event_id, "error": "exhausted retries"}
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def dispatch_batch(
+[?2004l[?2004h>     events: list[dict],
+[?2004l[?2004h>     max_concurrency: int = config.MAX_CONCURRENCY,
+[?2004l[?2004h>     summary_path: str = config.SUMMARY_OUTPUT_PATH,
+[?2004l[?2004h> ) -> dict:
+[?2004l[?2004h>     """
+[?2004l[?2004h>     Concurrently dispatch a batch of events and write a summary JSON file.
+[?2004l[?2004h> 
+[?2004l[?2004h>     Args:
+[?2004l[?2004h>         events: List of event dictionaries to POST to the ingestion API.
+[?2004l[?2004h>         max_concurrency: Maximum number of simultaneous delivery workers.
+[?2004l[?2004h>         summary_path: Destination path for the summary JSON file.
+[?2004l[?2004h> 
+[?2004l[?2004h>     Returns:
+[?2004l[?2004h>         A summary dictionary containing total_events, delivered_count,
+[?2004l[?2004h>         failed_count, and elapsed_seconds.
+[?2004l[?2004h>     """
+[?2004l[?2004h>     started_at = time.monotonic()
+[?2004l[?2004h>     total_events = len(events)
+[?2004l[?2004h> 
+[?2004l[?2004h>     try:
+[?2004l[?2004h>         worker_count = int(max_concurrency)
+[?2004l[?2004h>     except (TypeError, ValueError):
+[?2004l[?2004h>         worker_count = config.MAX_CONCURRENCY
+[?2004l[?2004h>     worker_count = max(1, worker_count)
+[?2004l[?2004h> 
+[?2004l[?2004h>     results: list[dict | None] = [None] * total_events
+[?2004l[?2004h> 
+[?2004l[?2004h>     if total_events:
+[?2004l[?2004h>         with ThreadPoolExecutor(max_workers=worker_count) as executor:
+[?2004l[?2004h>             future_to_index = {
+[?2004l[?2004h>                 executor.submit(_dispatch_event_with_retries, event): index
+[?2004l[?2004h>                 for index, event in enumerate(events)
+[?2004l[?2004h>             }
+[?2004l[?2004h> 
+[?2004l[?2004h>             for future in as_completed(future_to_index):
+[?2004l[?2004h>                 index = future_to_index[future]
+[?2004l[?2004h>                 event = events[index]
+[?2004l[?2004h>                 try:
+[?2004l[?2004h>                     results[index] = future.result()
+[?2004l[?2004h>                 except Exception as exc:  # Defensive: worker should already catch.
+[?2004l[?2004h>                     results[index] = {
+[?2004l[?2004h>                         "status": "error",
+[?2004l[?2004h>                         "event_id": event.get("event_id"),
+[?2004l[?2004h>                         "error": str(exc),
+[?2004l[?2004h>                     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     delivered_count = sum(1 for result in results if result and result.get("status") == "delivered")
+[?2004l[?2004h>     failed_count = total_events - delivered_count
+[?2004l[?2004h> 
+[?2004l[?2004h>     summary = {
+[?2004l[?2004h>         "total_events": total_events,
+[?2004l[?2004h>         "delivered_count": delivered_count,
+[?2004l[?2004h>         "failed_count": failed_count,
+[?2004l[?2004h>         "elapsed_seconds": time.monotonic() - started_at,
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     output_dir = os.path.dirname(os.path.abspath(summary_path))
+[?2004l[?2004h>     if output_dir:
+[?2004l[?2004h>         os.makedirs(output_dir, exist_ok=True)
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(summary_path, "w") as f:
+[?2004l[?2004h>         json.dump(summary, f, indent=2)
+[?2004l[?2004h> 
+[?2004l[?2004h>     return summary
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@ab94afffce9f:/app/repo# pip install -e /app/repo
+[?2004lObtaining file:///app/repo
+  Installing build dependencies ... [?25l- \ done
+[?25h  Checking if build backend supports build_editable ... [?25ldone
+[?25h  Getting requirements to build editable ... [?25l- done
+[?25h  Preparing editable metadata (pyproject.toml) ... [?25l- done
+[?25hRequirement already satisfied: requests>=2.31.0 in /usr/local/lib/python3.11/site-packages (from batch-sync==1.0.0) (2.32.3)
+Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (3.5.2)
+Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (3.20)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (2.8.0)
+Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (2026.7.22)
+Building wheels for collected packages: batch-sync
+  Building editable for batch-sync (pyproject.toml) ... [?25l- done
+[?25h  Created wheel for batch-sync: filename=batch_sync-1.0.0-0.editable-py3-none-any.whl size=3080 sha256=7d07970952b03d653d3b836b4f140f6cd31a911f3f901c624bdd77f6a8a05cdb
+  Stored in directory: /tmp/pip-ephem-wheel-cache-int3en9v/wheels/e6/cb/f6/0d8a1b704282cd50831b17208b130464fdc5b3b3072e9d0bf0
+Successfully built batch-sync
+Installing collected packages: batch-sync
+  Attempting uninstall: batch-sync
+    Found existing installation: batch-sync 1.0.0
+    Uninstalling batch-sync-1.0.0:
+      Successfully uninstalled batch-sync-1.0.0
+Successfully installed batch-sync-1.0.0
+[33mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv[0m[33m
+[0m
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m24.0[0m[39;49m -> [0m[32;49m26.2.1[0m
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpip install --upgrade pip[0m
+[?2004hroot@ab94afffce9f:/app/repo# python -m compileall batch_sync
+[?2004lListing 'batch_sync'...
+Compiling 'batch_sync/__init__.py'...
+Compiling 'batch_sync/cli.py'...
+Compiling 'batch_sync/config.py'...
+Compiling 'batch_sync/dispatcher.py'...
+[?2004hroot@ab94afffce9f:/app/repo# python - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> import tempfile
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> from unittest.mock import patch
+[?2004l[?2004h> 
+[?2004l[?2004h> from batch_sync.dispatcher import dispatch_batch
+[?2004l[?2004h> 
+[?2004l[?2004h> class Response:
+[?2004l[?2004h>     def __init__(self, status_code, headers=None):
+[?2004l[?2004h>         self.status_code = status_code
+[?2004l[?2004h>         self.headers = headers or {}
+[?2004l[?2004h> 
+[?2004l[?2004h> calls = {}
+[?2004l[?2004h> 
+[?2004l[?2004h> def fake_post(url, json=None, timeout=None):
+[?2004l[?2004h>     event_id = json.get('event_id')
+[?2004l[?2004h>     calls[event_id] = calls.get(event_id, 0) + 1
+[?2004l[?2004h>     if event_id == 'retry' and calls[event_id] == 1:
+[?2004l[?2004h>         return Response(429, {'Retry-After': '0'})
+[?2004l[?2004h>     if event_id == 'fail':
+[?2004l[?2004h>         return Response(500)
+[?2004l[?2004h>     return Response(200)
+[?2004l[?2004h> 
+[?2004l[?2004h> summary_file = Path(tempfile.gettempdir()) / 'batch_sync_smoke_summary.json'
+[?2004l[?2004h> with patch('batch_sync.dispatcher.requests.post', side_effect=fake_post):
+[?2004l[?2004h>     summary = dispatch_batch(
+[?2004l[?2004h>         [{'event_id': 'ok'}, {'event_id': 'retry'}, {'event_id': 'fail'}],
+[?2004l[?2004h>         max_concurrency=2,
+[?2004l[?2004h>         summary_path=str(summary_file),
+[?2004l[?2004h>     )
+[?2004l[?2004h> 
+[?2004l[?2004h> print(summary)
+[?2004l[?2004h> print(json.loads(summary_file.read_text()))
+[?2004l[?2004h> assert summary['total_events'] == 3
+[?2004l[?2004h> assert summary['delivered_count'] == 2
+[?2004l[?2004h> assert summary['failed_count'] == 1
+[?2004l[?2004h> assert calls['retry'] == 2
+[?2004l[?2004h> PY
+[?2004l{'total_events': 3, 'delivered_count': 2, 'failed_count': 1, 'elapsed_seconds': 0.0005720260014641099}
+{'total_events': 3, 'delivered_count': 2, 'failed_count': 1, 'elapsed_seconds': 0.0005720260014641099}
+[?2004hroot@ab94afffce9f:/app/repo# sed -n '1,260p' batch_sync/dispatcher.py
+[?2004l"""
+Dispatcher module for delivering event batches to the upstream API.
+"""
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+import json
+import os
+import time
+
+import requests
+
+from batch_sync import config
+
+
+# Keep retry settings local so existing public configuration and CLI flags remain
+# unchanged. These values provide transient-rate-limit resilience while ensuring a
+# permanently failing/rate-limited event eventually produces a failed result.
+_MAX_DELIVERY_ATTEMPTS = 5
+_BASE_BACKOFF_SECONDS = 0.5
+_MAX_BACKOFF_SECONDS = 30.0
+
+
+def dispatch_single_event(event: dict, timeout: float = config.DEFAULT_TIMEOUT) -> dict:
+    """
+    Deliver a single event to the API endpoint.
+    """
+    try:
+        res = requests.post(config.API_URL, json=event, timeout=timeout)
+        if res.status_code == 200:
+            return {"status": "delivered", "event_id": event.get("event_id")}
+        elif res.status_code == 429:
+            return {"status": "rate_limited", "event_id": event.get("event_id")}
+        else:
+            return {"status": "failed", "event_id": event.get("event_id"), "code": res.status_code}
+    except Exception as e:
+        return {"status": "error", "event_id": event.get("event_id"), "error": str(e)}
+
+
+def _retry_after_seconds(value) -> float | None:
+    """
+    Parse a Retry-After header value into seconds.
+
+    Retry-After may be either a number of seconds or an HTTP-date. Invalid values
+    are ignored so callers can fall back to exponential backoff.
+    """
+    if value is None:
+        return None
+
+    value = str(value).strip()
+    if not value:
+        return None
+
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(value)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None
+
+
+def _get_retry_after_header(headers) -> str | None:
+    """Return Retry-After from a requests headers object or a plain dict."""
+    if not headers or not hasattr(headers, "get"):
+        return None
+    return headers.get("Retry-After") or headers.get("retry-after")
+
+
+def _sleep_for_retry(attempt_number: int, response=None) -> None:
+    """
+    Sleep before retrying a transient failure.
+
+    For HTTP 429 responses, honor Retry-After when present. Otherwise use
+    exponential backoff capped at _MAX_BACKOFF_SECONDS.
+    """
+    exponential_delay = min(
+        _MAX_BACKOFF_SECONDS,
+        _BASE_BACKOFF_SECONDS * (2 ** max(0, attempt_number - 1)),
+    )
+
+    retry_after = None
+    if response is not None:
+        retry_after = _retry_after_seconds(_get_retry_after_header(getattr(response, "headers", None)))
+
+    delay = exponential_delay if retry_after is None else min(retry_after, _MAX_BACKOFF_SECONDS)
+    if delay > 0:
+        time.sleep(delay)
+
+
+def _dispatch_event_with_retries(event: dict, timeout: float = config.DEFAULT_TIMEOUT) -> dict:
+    """
+    Deliver one event, retrying transient rate-limit responses.
+    """
+    event_id = event.get("event_id")
+
+    for attempt in range(1, _MAX_DELIVERY_ATTEMPTS + 1):
+        try:
+            response = requests.post(config.API_URL, json=event, timeout=timeout)
+        except Exception as exc:
+            if attempt >= _MAX_DELIVERY_ATTEMPTS:
+                return {"status": "error", "event_id": event_id, "error": str(exc)}
+            _sleep_for_retry(attempt)
+            continue
+
+        status_code = getattr(response, "status_code", None)
+        if status_code is not None and 200 <= status_code < 300:
+            return {"status": "delivered", "event_id": event_id}
+
+        if status_code == 429:
+            if attempt < _MAX_DELIVERY_ATTEMPTS:
+                _sleep_for_retry(attempt, response)
+                continue
+            return {
+                "status": "failed",
+                "event_id": event_id,
+                "code": status_code,
+                "error": "rate limited after retries",
+            }
+
+        return {"status": "failed", "event_id": event_id, "code": status_code}
+
+    return {"status": "failed", "event_id": event_id, "error": "exhausted retries"}
+
+
+def dispatch_batch(
+    events: list[dict],
+    max_concurrency: int = config.MAX_CONCURRENCY,
+    summary_path: str = config.SUMMARY_OUTPUT_PATH,
+) -> dict:
+    """
+    Concurrently dispatch a batch of events and write a summary JSON file.
+
+    Args:
+        events: List of event dictionaries to POST to the ingestion API.
+        max_concurrency: Maximum number of simultaneous delivery workers.
+        summary_path: Destination path for the summary JSON file.
+
+    Returns:
+        A summary dictionary containing total_events, delivered_count,
+        failed_count, and elapsed_seconds.
+    """
+    started_at = time.monotonic()
+    total_events = len(events)
+
+    try:
+        worker_count = int(max_concurrency)
+    except (TypeError, ValueError):
+        worker_count = config.MAX_CONCURRENCY
+    worker_count = max(1, worker_count)
+
+    results: list[dict | None] = [None] * total_events
+
+    if total_events:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_to_index = {
+                executor.submit(_dispatch_event_with_retries, event): index
+                for index, event in enumerate(events)
+            }
+
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]
+                event = events[index]
+                try:
+                    results[index] = future.result()
+                except Exception as exc:  # Defensive: worker should already catch.
+                    results[index] = {
+                        "status": "error",
+                        "event_id": event.get("event_id"),
+                        "error": str(exc),
+                    }
+
+    delivered_count = sum(1 for result in results if result and result.get("status") == "delivered")
+    failed_count = total_events - delivered_count
+
+    summary = {
+        "total_events": total_events,
+        "delivered_count": delivered_count,
+        "failed_count": failed_count,
+        "elapsed_seconds": time.monotonic() - started_at,
+    }
+
+    output_dir = os.path.dirname(os.path.abspath(summary_path))
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2)
+
+    return summary
+[?2004hroot@ab94afffce9f:/app/repo# python - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p = Path('batch_sync/dispatcher.py')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> s = s.replace('_BASE_BACKOFF_SECONDS = 0.5\n_MAX_BACKOFF_SECONDS = 30.0\n', '_BASE_BACKOFF_SECONDS = 0.1\n_MAX_BACKOFF_SECONDS = 5.0\n')
+[?2004l[?2004h> p.write_text(s)
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@ab94afffce9f:/app/repo# python -m compileall batch_sync
+[?2004lListing 'batch_sync'...
+Compiling 'batch_sync/dispatcher.py'...
+[?2004hroot@ab94afffce9f:/app/repo# python - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> import tempfile
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> from unittest.mock import patch
+[?2004l[?2004h> 
+[?2004l[?2004h> from batch_sync.dispatcher import dispatch_batch
+[?2004l[?2004h> 
+[?2004l[?2004h> class Response:
+[?2004l[?2004h>     def __init__(self, status_code, headers=None):
+[?2004l[?2004h>         self.status_code = status_code
+[?2004l[?2004h>         self.headers = headers or {}
+[?2004l[?2004h> 
+[?2004l[?2004h> calls = {}
+[?2004l[?2004h> 
+[?2004l[?2004h> def fake_post(url, json=None, timeout=None):
+[?2004l[?2004h>     event_id = json.get('event_id')
+[?2004l[?2004h>     calls[event_id] = calls.get(event_id, 0) + 1
+[?2004l[?2004h>     if event_id == 'retry' and calls[event_id] == 1:
+[?2004l[?2004h>         return Response(429, {'Retry-After': '0'})
+[?2004l[?2004h>     if event_id == 'always429':
+[?2004l[?2004h>         return Response(429, {'Retry-After': '2'})
+[?2004l[?2004h>     if event_id == 'fail':
+[?2004l[?2004h>         return Response(500)
+[?2004l[?2004h>     return Response(200)
+[?2004l[?2004h> 
+[?2004l[?2004h> summary_file = Path(tempfile.gettempdir()) / 'batch_sync_smoke_summary.json'
+[?2004l[?2004h> with patch('batch_sync.dispatcher.requests.post', side_effect=fake_post), patch('batch_sync.dispatcher.time.sleep') as sleep:
+[?2004l[?2004h>     summary = dispatch_batch(
+[?2004l[?2004h>         [{'event_id': 'ok'}, {'event_id': 'retry'}, {'event_id': 'fail'}, {'event_id': 'always429'}],
+[?2004l[?2004h>         max_concurrency=2,
+[?2004l[?2004h>         summary_path=str(summary_file),
+[?2004l[?2004h>     )
+[?2004l[?2004h> 
+[?2004l[?2004h> print(summary)
+[?2004l[?2004h> print(json.loads(summary_file.read_text()))
+[?2004l[?2004h> print(calls)
+[?2004l[?2004h> print('sleep calls:', [c.args[0] for c in sleep.call_args_list])
+[?2004l[?2004h> assert summary['total_events'] == 4
+[?2004l[?2004h> assert summary['delivered_count'] == 2
+[?2004l[?2004h> assert summary['failed_count'] == 2
+[?2004l[?2004h> assert calls['retry'] == 2
+[?2004l[?2004h> assert calls['always429'] == 5
+[?2004l[?2004h> PY
+[?2004l{'total_events': 4, 'delivered_count': 2, 'failed_count': 2, 'elapsed_seconds': 0.0009365169971715659}
+{'total_events': 4, 'delivered_count': 2, 'failed_count': 2, 'elapsed_seconds': 0.0009365169971715659}
+{'ok': 1, 'retry': 2, 'fail': 1, 'always429': 5}
+sleep calls: [2.0, 2.0, 2.0, 2.0]
+[?2004hroot@ab94afffce9f:/app/repo# 

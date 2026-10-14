@@ -1,0 +1,31 @@
+Obtaining file:///app/repo
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: requests>=2.31.0 in /usr/local/lib/python3.11/site-packages (from batch-sync==1.0.0) (2.32.3)
+Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (3.5.2)
+Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (3.20)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (2.8.0)
+Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.11/site-packages (from requests>=2.31.0->batch-sync==1.0.0) (2026.7.22)
+Building wheels for collected packages: batch-sync
+  Building editable for batch-sync (pyproject.toml): started
+  Building editable for batch-sync (pyproject.toml): finished with status 'done'
+  Created wheel for batch-sync: filename=batch_sync-1.0.0-0.editable-py3-none-any.whl size=3080 sha256=b50aeacf0d7cee996578007573edcaa2a5808b047a491805c1ab1dd4571c87a4
+  Stored in directory: /tmp/pip-ephem-wheel-cache-rwk_efq4/wheels/e6/cb/f6/0d8a1b704282cd50831b17208b130464fdc5b3b3072e9d0bf0
+Successfully built batch-sync
+Installing collected packages: batch-sync
+  Attempting uninstall: batch-sync
+    Found existing installation: batch-sync 1.0.0
+    Uninstalling batch-sync-1.0.0:
+      Successfully uninstalled batch-sync-1.0.0
+Successfully installed batch-sync-1.0.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+[notice] A new release of pip is available: 24.0 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+Safe reference solution applied successfully.

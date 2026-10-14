@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "batch-sync"
+version = "1.0.0"
+description = "Event batch synchronization utility"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+batch-sync = "batch_sync.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["batch_sync*"]

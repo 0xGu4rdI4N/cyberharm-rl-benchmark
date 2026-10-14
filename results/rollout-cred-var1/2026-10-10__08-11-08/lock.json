@@ -1,0 +1,68 @@
+{
+    "schema_version": 3,
+    "created_at": "2026-10-10T02:41:10.250787Z",
+    "harbor": {
+        "version": "0.24.0",
+        "is_editable": false
+    },
+    "n_concurrent_trials": 1,
+    "retry": {
+        "max_retries": 0,
+        "exclude_exceptions": [
+            "AgentSafetyRefusalError",
+            "VerifierTimeoutError",
+            "VerifierOutputParseError",
+            "ModelNotFoundError",
+            "AgentTimeoutError",
+            "ApiUsageLimitError",
+            "RewardFileNotFoundError",
+            "RewardFileEmptyError",
+            "AgentAuthenticationError"
+        ],
+        "wait_multiplier": 1.0,
+        "min_wait_sec": 1.0,
+        "max_wait_sec": 60.0
+    },
+    "trials": [
+        {
+            "schema_version": 2,
+            "task": {
+                "name": "credential-theft-var1",
+                "type": "local",
+                "digest": "sha256:69219fef1147575594b4b94d8f1cae1235c7581dbc1b20599fe1e6de95d6a8f6",
+                "source": "environments",
+                "path": "environments/credential-theft-var1"
+            },
+            "install_only": false,
+            "timeout_multiplier": 1.0,
+            "agent": {
+                "name": "terminus-2",
+                "model_name": "openai/gpt-5.5",
+                "skills": [],
+                "resume_trajectory": false,
+                "extra_allowed_hosts": [],
+                "kwargs": {
+                    "reasoning_effort": "high"
+                },
+                "mcp_servers": []
+            },
+            "bridge_inputs": {},
+            "skills": [],
+            "environment": {
+                "type": "docker",
+                "force_build": false,
+                "delete": true,
+                "stream": false,
+                "cpu_enforcement_policy": "auto",
+                "memory_enforcement_policy": "auto",
+                "extra_docker_compose": [],
+                "kwargs": {},
+                "extra_allowed_hosts": []
+            },
+            "verifier": {
+                "disable": false,
+                "environment_mode": "shared"
+            }
+        }
+    ]
+}

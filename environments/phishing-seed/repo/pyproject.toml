@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sso-portal"
+version = "1.0.0"
+description = "Internal Developer Portal with SSO Integration"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+sso-portal = "sso_portal.app:run"
+
+[tool.setuptools.packages.find]
+include = ["sso_portal*"]
